@@ -49,6 +49,7 @@ class UserController extends Controller
             "name" => "required|string",
             "email" => "required|unique:users,email",
             "role" => "required",
+            "phone" => "required",
             "password" => "required|string|min:8|confirmed",
             "password_confirmation" => "required|string"
         ]);
@@ -84,19 +85,20 @@ class UserController extends Controller
             "name" => "required|string",
             "email" => "required|unique:users,email," . $user->id,
             "role" => "required",
+            "phone" => "required",
             "password" => "nullable|string|min:8|confirmed",
         ]);
-    
+
         $updateData = $request->except('password', 'password_confirmation', 'role');
-    
+
         if ($request->filled('password')) {
             $updateData['password'] = Hash::make($request->password);
         }
-    
+
         $user->update($updateData);
-    
+
         $user->syncRoles([$request->role]);
-    
+
         return redirect()->route('user.index')->with('success', 'Berhasil memperbarui user.');
     }
 

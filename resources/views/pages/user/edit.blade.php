@@ -54,6 +54,15 @@
                 </div>
             </div>
             <div class="form-group mb-3">
+                <label for="username" class="mb-2">No Telephone</label>
+                <input type="text" class="form-control @error('phone') is-invalid @enderror" name="phone" id="phone" value="{{ $user->phone ?? '-' }}">
+                @error('phone')
+                    <span class="invalid-feedback">
+                        {{ $message }}
+                    </span>
+                @enderror
+            </div>
+            <div class="form-group mb-3">
                 <label for="username" class="mb-2">Level</label>
                 <select name="role" id="role" class="form-control @error('role') is-invalid @enderror">
                     <option value="">Pilih</option>

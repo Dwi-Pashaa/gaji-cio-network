@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Pages;
 use App\Http\Controllers\Controller;
 use App\Models\CashAdvance;
 use App\Models\Companie;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -211,12 +212,37 @@ class CashAdvanceController extends Controller
             ]);
         }
 
+        $defaultPhone = "6285324780031";
+        $user = User::find($cashAdvance->user_id);
+
+        $phoneUser = $user->phone;
+        if ($phoneUser) {
+            $phoneUser = preg_replace('/[^0-9]/', '', $phoneUser);
+            if (substr($phoneUser, 0, 1) === "0") {
+                $phoneUser = "62" . substr($phoneUser, 1);
+            }
+        }
+
         $cashAdvance->update([
             'status' => 'approved',
             'approved_date' => Carbon::now()
         ]);
 
-        return response()->json(['code' => 200, 'status' => 'success', 'message' => 'Berhasil menyimpan data.']);
+        $message = "Konfirmasi Kasbon Disetujui\n\n"
+            . "Nama: {$user->name}\n"
+            . "Judul: {$cashAdvance->title}\n"
+            . "Jumlah: Rp" . number_format($cashAdvance->amount, 0, ',', '.') . "\n"
+            . "Tanggal Disetujui: " . Carbon::now()->translatedFormat('l, d F Y - H:i');
+
+        $encodedMsg = rawurlencode($message);
+
+        return response()->json([
+            'code' => 200,
+            'status' => 'success',
+            'message' => 'Berhasil menyimpan data.',
+            'wa_link_user' => $phoneUser ? "https://wa.me/{$phoneUser}?text={$encodedMsg}" : null,
+            'wa_link_default' => "https://wa.me/{$defaultPhone}?text={$encodedMsg}"
+        ]);
     }
 
     public function rejected(string $id)
@@ -231,12 +257,37 @@ class CashAdvanceController extends Controller
             ]);
         }
 
+        $defaultPhone = "6285324780031";
+        $user = User::find($cashAdvance->user_id);
+
+        $phoneUser = $user->phone;
+        if ($phoneUser) {
+            $phoneUser = preg_replace('/[^0-9]/', '', $phoneUser);
+            if (substr($phoneUser, 0, 1) === "0") {
+                $phoneUser = "62" . substr($phoneUser, 1);
+            }
+        }
+
         $cashAdvance->update([
             'status' => 'rejected',
             'approved_date' => Carbon::now()
         ]);
 
-        return response()->json(['code' => 200, 'status' => 'success', 'message' => 'Berhasil menyimpan data.']);
+        $message = "Konfirmasi Kasbon Ditolak\n\n"
+            . "Nama: {$user->name}\n"
+            . "Judul: {$cashAdvance->title}\n"
+            . "Jumlah: Rp" . number_format($cashAdvance->amount, 0, ',', '.') . "\n"
+            . "Tanggal Disetujui: " . Carbon::now()->translatedFormat('l, d F Y - H:i');
+
+        $encodedMsg = rawurlencode($message);
+
+        return response()->json([
+            'code' => 200,
+            'status' => 'success',
+            'message' => 'Berhasil menyimpan data.',
+            'wa_link_user' => $phoneUser ? "https://wa.me/{$phoneUser}?text={$encodedMsg}" : null,
+            'wa_link_default' => "https://wa.me/{$defaultPhone}?text={$encodedMsg}"
+        ]);
     }
 
     public function updatePhone(Request $request)

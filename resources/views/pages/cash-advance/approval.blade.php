@@ -194,22 +194,52 @@
                     method: "PUT",
                     dataType: "json",
                     success: function(response) {
+                        console.log(response);
+
                         Toast.fire({
                             icon: response.status,
                             title: response.message
                         });
 
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 3000);
+                        let opened = 0; 
+
+                        if (response.wa_link_user) {
+                            const popupUser = window.open(
+                                response.wa_link_user,
+                                'waUser',
+                                'width=600,height=800,top=100,left=100,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
+                            );
+                            if (popupUser) opened++;
+                        }
+
+                        if (response.wa_link_default) {
+                            setTimeout(() => {
+                                const popupAdmin = window.open(
+                                    response.wa_link_default,
+                                    'waAdmin',
+                                    'width=600,height=800,top=150,left=750,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
+                                );
+                                if (popupAdmin) opened++;
+
+                                if (opened >= 1) {
+                                    setTimeout(() => {
+                                        window.location.reload();
+                                    }, 2000);
+                                }
+                            }, 1500); 
+                        } else {
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 2000);
+                        }
                     },
-                    error: function(err) {
+                    error: function() {
                         Toast.fire({
                             icon: "error",
                             title: "Server Error"
                         });
                     }
-                })
+                });
             }
         });
     }
@@ -236,17 +266,45 @@
                             title: response.message
                         });
 
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 3000);
+                        let opened = 0; 
+
+                        if (response.wa_link_user) {
+                            const popupUser = window.open(
+                                response.wa_link_user,
+                                'waUser',
+                                'width=600,height=800,top=100,left=100,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
+                            );
+                            if (popupUser) opened++;
+                        }
+
+                        if (response.wa_link_default) {
+                            setTimeout(() => {
+                                const popupAdmin = window.open(
+                                    response.wa_link_default,
+                                    'waAdmin',
+                                    'width=600,height=800,top=150,left=750,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
+                                );
+                                if (popupAdmin) opened++;
+
+                                if (opened >= 1) {
+                                    setTimeout(() => {
+                                        window.location.reload();
+                                    }, 2000);
+                                }
+                            }, 1500); 
+                        } else {
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 2000);
+                        }
                     },
-                    error: function(err) {
+                    error: function() {
                         Toast.fire({
                             icon: "error",
                             title: "Server Error"
                         });
                     }
-                })
+                });
             }
         });
     }

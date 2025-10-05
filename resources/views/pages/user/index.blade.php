@@ -53,6 +53,7 @@
                     <th>Username</th>
                     <th>Nama Lengkap</th>
                     <th>Email</th>
+                    <th>No Telephone</th>
                     <th>Level</th>
                     <th>Created</th>
                     <th>Action</th>
@@ -78,6 +79,9 @@
                             {{ $item->email }}
                         </td>
                         <td>
+                            {{ $item->phone ?? '-' }}
+                        </td>
+                        <td>
                             {{ optional($item->roles->first())->name ?? '-' }}
                         </td>
                         <td>
@@ -96,7 +100,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="text-center">Tidak Ada Data</td>
+                        <td colspan="8" class="text-center">Tidak Ada Data</td>
                     </tr>
                 @endforelse
             </tbody>
