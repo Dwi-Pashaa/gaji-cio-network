@@ -37,7 +37,7 @@
                         </span>
                     </a>
                 </li>
-                @if (auth()->user()->can('lihat level') || auth()->user()->can('lihat user'))
+                @canany(['lihat level', 'lihat user'])
                     <li class="nav-item {{ Route::is('roles*') ? 'active' : '' }}">
                         <a class="nav-link" href="{{ route('roles.index') }}">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
@@ -58,7 +58,7 @@
                             </span>
                         </a>
                     </li>
-                @endif
+                @endcanany
                 @canany(['lihat gaji karyawan', 'lihat tunjangan'])
                     <li class="nav-item dropdown {{ Route::is(['salary*', 'allowance*']) ? 'active' : '' }}">
                         <a class="nav-link dropdown-toggle" href="#navbar-help" data-bs-toggle="dropdown"
@@ -89,9 +89,10 @@
                         </div>
                     </li>
                 @endcanany
-                @can('lihat kasbon')
-                    <li class="nav-item {{ Route::is('cash.advance*') ? 'active' : '' }}">
-                        <a class="nav-link" href="{{ route('cash.advance.index') }}">
+                @canany(['lihat kasbon', 'lihat tipe kasbon', 'approve kasbon'])
+                    <li class="nav-item dropdown {{ Route::is(['salary*', 'approve kasbon*']) ? 'active' : '' }}">
+                        <a class="nav-link dropdown-toggle" href="#navbar-help" data-bs-toggle="dropdown"
+                            data-bs-auto-close="false" role="button" aria-expanded="false">
                             <span class="nav-link-icon d-md-none d-lg-inline-block">
                                 <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-cash-banknote-minus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M12 18h-7a2 2 0 0 1 -2 -2v-8a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v7" /><path d="M18 12h.01" /><path d="M6 12h.01" /><path d="M16 19h6" /></svg>
                             </span>
@@ -99,20 +100,25 @@
                                 Kasbon
                             </span>
                         </a>
+                        <div class="dropdown-menu {{ Route::is(['cash.advance*', 'allowance*', 'type.cash.advance*']) ? 'show' : '' }}">
+                            @can('lihat tipe kasbon')
+                                <a class="dropdown-item {{ Route::is('type.cash.advance.index') ? 'active' : '' }}" href="{{ route('type.cash.advance.index') }}" rel="noopener">
+                                    Tipe Kasbon
+                                </a>
+                            @endcan
+                            @can('lihat kasbon')
+                                <a class="dropdown-item {{ Route::is('cash.advance.index') ? 'active' : '' }}" href="{{ route('cash.advance.index') }}" rel="noopener">
+                                   Pengajuan Kasbon
+                                </a>
+                            @endcan
+                            @can('approve kasbon')
+                                <a class="dropdown-item {{ Route::is('cash.advance.approval') ? 'active' : '' }}" href="{{ route('cash.advance.approval') }}" rel="noopener">
+                                    Kasbon
+                                </a>
+                            @endcan
+                        </div>
                     </li>
-                @endcan
-                @can('approve kasbon')
-                    <li class="nav-item {{ Route::is('cash.advance.approval*') ? 'active' : '' }}">
-                        <a class="nav-link" href="{{ route('cash.advance.approval') }}">
-                            <span class="nav-link-icon d-md-none d-lg-inline-block">
-                                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-cash-banknote-minus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M12 18h-7a2 2 0 0 1 -2 -2v-8a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v7" /><path d="M18 12h.01" /><path d="M6 12h.01" /><path d="M16 19h6" /></svg>
-                            </span>
-                            <span class="nav-link-title">
-                                Kasbon
-                            </span>
-                        </a>
-                    </li>
-                @endcan
+                @endcanany
                 <li class="nav-item">
                     <a class="nav-link" href="{{ route('logout') }}">
                         <span class="nav-link-icon d-md-none d-lg-inline-block">

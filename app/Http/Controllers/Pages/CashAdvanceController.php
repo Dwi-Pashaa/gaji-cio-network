@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Pages;
 
 use App\Http\Controllers\Controller;
 use App\Models\CashAdvance;
+use App\Models\CashAdvanceType;
 use App\Models\Companie;
 use App\Models\User;
 use Carbon\Carbon;
@@ -37,7 +38,9 @@ class CashAdvanceController extends Controller
             ->orderBy('id', 'DESC')
             ->paginate($sort);
 
-        return view("pages.cash-advance.index", compact("cashAdvance"));
+        $type = CashAdvanceType::all();
+
+        return view("pages.cash-advance.index", compact("cashAdvance", "type"));
     }
 
     /**
@@ -48,10 +51,15 @@ class CashAdvanceController extends Controller
         $validation = Validator::make($request->all(), [
             "title" => "required",
             "amount" => "required",
+            "type_id" => "required",
         ]);
 
         if ($validation->fails()) {
-            return back()->withErrors($validation)->withInput();
+            return response()->json([
+                'code' => 400,
+                'status' => 'error',
+                'errors' => $validation->errors()
+            ]);
         }
 
         $user = Auth::user();
@@ -64,12 +72,20 @@ class CashAdvanceController extends Controller
             "request_date" => $requestDate,
             "amount" => $amount,
             "title" => $request->title,
+            "type_id" => $request->type_id,
         ]);
+
+        $type = CashAdvanceType::find($request->type_id);
+        if ($type) {
+            $type->amount = max(0, $type->amount - $amount);
+            $type->save();
+        }
 
         $message = "Pengajuan Kasbon\n\n"
             . "Nama: {$user->name}\n"
             . "Judul: {$request->title}\n"
             . "Jumlah: Rp" . number_format($amount, 0, ',', '.') . "\n"
+            . "Tipe Pengambilan Kasbon: {$type->name}\n"
             . "Hari & Tanggal: " . $requestDate->translatedFormat('l, d F Y');
 
         $companie = Companie::latest()->first();
@@ -108,50 +124,75 @@ class CashAdvanceController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, string $id)
     {
         $validation = Validator::make($request->all(), [
-            "amount" => "required"
+            "title" => "required",
+            "amount" => "required",
+            "type_id" => "required",
         ]);
 
         if ($validation->fails()) {
             return response()->json([
                 'code' => 400,
                 'status' => 'error',
-                'message' => 'Opps ada yang belum di isi.',
                 'errors' => $validation->errors()
             ]);
         }
 
-        $cashAdvance = CashAdvance::findOrFail($id);
+        $cashAdvance = CashAdvance::find($id);
+
+        if (!$cashAdvance) {
+            return response()->json([
+                'code' => 404,
+                'status' => 'error',
+                'message' => 'Data tidak ditemukan.',
+            ]);
+        }
 
         $user = Auth::user();
-        $requestDate = Carbon::now();
+        $amountBaru = preg_replace('/[^0-9]/', '', $request->amount);
+        $amountLama = $cashAdvance->amount;
+        $typeBaru = CashAdvanceType::find($request->type_id);
+        $typeLama = CashAdvanceType::find($cashAdvance->type_id);
 
-        $amount = preg_replace('/[^0-9]/', '', $request->amount);
+        if ($typeBaru && $typeLama && $typeBaru->id != $typeLama->id) {
+            $typeLama->amount += $amountLama;
+            $typeLama->save();
+
+            $typeBaru->amount = max(0, $typeBaru->amount - $amountBaru);
+            $typeBaru->save();
+        } else {
+            $selisih = $amountBaru - $amountLama;
+            if ($typeBaru) {
+                $typeBaru->amount = max(0, $typeBaru->amount - $selisih);
+                $typeBaru->save();
+            }
+        }
 
         $cashAdvance->update([
-            "amount" => $amount,
             "title" => $request->title,
+            "amount" => $amountBaru,
+            "type_id" => $request->type_id,
+            "updated_at" => Carbon::now(),
         ]);
 
         $message = "Perubahan Pengajuan Kasbon\n\n"
             . "Nama: {$user->name}\n"
             . "Judul: {$request->title}\n"
-            . "Jumlah: Rp" . number_format($amount, 0, ',', '.') . "\n"
-            . "Hari & Tanggal: " . $requestDate->translatedFormat('l, d F Y');
+            . "Jumlah Baru: Rp" . number_format($amountBaru, 0, ',', '.') . "\n"
+            . "Tipe Kasbon: {$typeBaru->name}\n"
+            . "Tanggal Diperbarui: " . Carbon::now()->translatedFormat('l, d F Y - H:i');
 
         $companie = Companie::latest()->first();
         $telp = $companie->telp;
-
         $waNumber = preg_replace('/^0/', '62', $telp);
-
         $waLink = "https://wa.me/{$waNumber}?text=" . rawurlencode($message);
 
         return response()->json([
             'code' => 200,
             'status' => 'success',
-            'message' => 'Berhasil mengupdate data.',
+            'message' => 'Berhasil memperbarui data kasbon.',
             'wa_link' => $waLink
         ]);
     }

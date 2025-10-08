@@ -162,6 +162,16 @@
                         <input type="text" name="amount" id="amount" class="form-control">
                         <span class="invalid-feedback error_amount"></span>
                     </div>
+                    <div class="form-group mb-3">
+                        <label for="amount" class="mb-2">Pengambilan Kasbon</label>
+                        <select name="type_id" id="type_id" class="form-control">
+                            <option value="">Pilih</option>
+                            @foreach ($type as $tp)
+                                <option value="{{ $tp->id }}">{{ $tp->name }}</option>
+                            @endforeach
+                        </select>
+                        <span class="invalid-feedback error_amount"></span>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn me-auto" data-bs-dismiss="modal">Batal</button>
@@ -170,10 +180,6 @@
             </div>
         </div>
     </div>
-@endpush
-
-@push('js')
-    
 @endpush
 
 @push('js')
@@ -218,6 +224,7 @@
         $("#id").val("");
         $("#title").val("");
         $("#amount").val("");
+        $("#type_id").val("");
     });
 
     $("#storeBtn").click(function() {
@@ -225,6 +232,7 @@
         let type = $("#type").val()
         let title = $("#title").val();
         let amount = $("#amount").val();
+        let type_id = $("#type_id").val();
 
         let url;
         let method;
@@ -243,6 +251,7 @@
             data: {
                 title: title,
                 amount: amount,
+                type_id: type_id
             },
         }).done(function(response) {
             if (response.errors) {
@@ -287,6 +296,7 @@
 
             $("#id").val(data.id);
             $("#title").val(data.title);
+            $("#type_id").val(data.type_id);
             
             let formatedAmount = new Intl.NumberFormat('id-ID').format(data.amount);
             $("#amount").val(formatedAmount);

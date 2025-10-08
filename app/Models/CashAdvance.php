@@ -9,7 +9,7 @@ class CashAdvance extends Model
 {
     use HasFactory;
     protected $table = 'cash_advance';
-    protected $fillable = ['user_id', 'amount', 'status', 'request_date', 'approved_date', 'title'];
+    protected $fillable = ['user_id', 'amount', 'status', 'request_date', 'approved_date', 'title', 'type_id'];
 
     public function user()
     {

@@ -5,6 +5,7 @@ use App\Http\Controllers\Pages\AllowanceController;
 use App\Http\Controllers\Pages\CashAdvanceController;
 use App\Http\Controllers\Pages\DashboardController;
 use App\Http\Controllers\Pages\SalaryController;
+use App\Http\Controllers\Pages\TypeCashAdvanceController;
 use App\Http\Controllers\Pages\UserController;
 use App\Http\Controllers\Role\RoleController;
 use Illuminate\Support\Facades\Route;
@@ -78,6 +79,14 @@ Route::middleware(['auth'])->group(function () {
             Route::put('/{id}/approve', [CashAdvanceController::class, 'approve'])->name('salary.approve')->can('approve kasbon');
             Route::put('/{id}/rejected', [CashAdvanceController::class, 'rejected'])->name('salary.rejected')->can('tolak kasbon');
             Route::post('/updatePhone', [CashAdvanceController::class, 'updatePhone'])->name('salary.updatePhone');
+        });
+
+        Route::prefix('type')->group(function () {
+            Route::get('/', [TypeCashAdvanceController::class, 'index'])->name('type.cash.advance.index')->can('lihat tipe kasbon');
+            Route::post('/store', [TypeCashAdvanceController::class, 'store'])->name('type.cash.advance.store')->can('tambah tipe kasbon');
+            Route::get('/{id}/show', [TypeCashAdvanceController::class, 'show'])->name('type.cash.advance.show')->can('edit tipe kasbon');
+            Route::put('/{id}/update', [TypeCashAdvanceController::class, 'update'])->name('type.cash.advance.update')->can('edit tipe kasbon');
+            Route::delete('/{id}/destroy', [TypeCashAdvanceController::class, 'destroy'])->name('type.cash.advance.destroy')->can('hapus tipe kasbon');
         });
     });
 });
