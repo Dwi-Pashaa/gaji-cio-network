@@ -14,34 +14,34 @@ class PermissionSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
-            // 'tambah level',
-            // 'lihat level',
-            // 'edit level',
-            // 'hapus level',
+            'tambah level',
+            'lihat level',
+            'edit level',
+            'hapus level',
 
-            // 'tambah user',
-            // 'lihat user',
-            // 'edit user',
-            // 'hapus user',
+            'tambah user',
+            'lihat user',
+            'edit user',
+            'hapus user',
 
-            // 'tambah tunjangan',
-            // 'lihat tunjangan',
-            // 'edit tunjangan',
-            // 'hapus tunjangan',
+            'tambah tunjangan',
+            'lihat tunjangan',
+            'edit tunjangan',
+            'hapus tunjangan',
 
-            // 'tambah gaji karyawan',
-            // 'lihat gaji karyawan',
-            // 'edit gaji karyawan',
-            // 'hapus gaji karyawan',
+            'tambah gaji karyawan',
+            'lihat gaji karyawan',
+            'edit gaji karyawan',
+            'hapus gaji karyawan',
 
-            // 'ajukan kasbon',
-            // 'lihat kasbon',
-            // 'edit kasbon',
-            // 'hapus kasbon',
-            // 'approve kasbon',
-            // 'tolak kasbon',
-            // 'slip gaji karyawan',
-            // 'rekap gaji'
+            'ajukan kasbon',
+            'lihat kasbon',
+            'edit kasbon',
+            'hapus kasbon',
+            'approve kasbon',
+            'tolak kasbon',
+            'slip gaji karyawan',
+            'rekap gaji'
 
             'tambah tipe kasbon',
             'lihat tipe kasbon',
