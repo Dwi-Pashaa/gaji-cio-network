@@ -41,7 +41,7 @@ class PermissionSeeder extends Seeder
             'approve kasbon',
             'tolak kasbon',
             'slip gaji karyawan',
-            'rekap gaji'
+            'rekap gaji',
 
             'tambah tipe kasbon',
             'lihat tipe kasbon',
