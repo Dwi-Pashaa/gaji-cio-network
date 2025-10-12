@@ -15,4 +15,9 @@ class CashAdvance extends Model
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
+
+    public function type()
+    {
+        return $this->belongsTo(CashAdvanceType::class, 'type_id', 'id');
+    }
 }

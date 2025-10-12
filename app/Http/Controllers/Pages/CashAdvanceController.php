@@ -212,6 +212,14 @@ class CashAdvanceController extends Controller
             ]);
         }
 
+        if ($cashAdvance->type_id) {
+            $type = CashAdvanceType::find($cashAdvance->type_id);
+            if ($type) {
+                $type->amount += $cashAdvance->amount;
+                $type->save();
+            }
+        }
+
         $cashAdvance->delete();
 
         return response()->json(['code' => 200, 'status' => 'success', 'message' => 'Berhasil menghapus data.']);
@@ -223,7 +231,7 @@ class CashAdvanceController extends Controller
         $end   = $request->end ?? null;
         $sort  = $request->sort ?? 10;
 
-        $cashAdvance = CashAdvance::with(['user'])
+        $cashAdvance = CashAdvance::with(['user', 'type'])
             ->when($start && $end, function ($query) use ($start, $end) {
                 $query->whereBetween('request_date', [$start, $end]);
             })

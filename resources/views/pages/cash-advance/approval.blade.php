@@ -70,6 +70,7 @@
                         <tr>
                             <th>No</th>
                             <th>Tanggal Pengajuan</th>
+                            <th>Tipe Kasbon</th>
                             <th>Karyawan</th>
                             <th>Keterangan</th>
                             <th>Jumlah Kasbon</th>
@@ -92,6 +93,9 @@
                                 <td>{{ $no++ }}</td>
                                 <td>
                                     {{ \Carbon\Carbon::parse($item->request_date)->translatedFormat('d F Y') }}
+                                </td>
+                                <td>
+                                    {{ optional($item)->type->name }}
                                 </td>
                                 <td>
                                     {{ optional($item)->user->name }}
@@ -135,7 +139,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="text-center">Tidak Ada Data</td>
+                                <td colspan="9" class="text-center">Tidak Ada Data</td>
                             </tr>
                         @endforelse
                     </tbody>

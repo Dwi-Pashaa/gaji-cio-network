@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Pages\AllowanceController;
 use App\Http\Controllers\Pages\CashAdvanceController;
 use App\Http\Controllers\Pages\DashboardController;
+use App\Http\Controllers\Pages\ExpenditureController;
 use App\Http\Controllers\Pages\SalaryController;
 use App\Http\Controllers\Pages\TypeCashAdvanceController;
 use App\Http\Controllers\Pages\UserController;
@@ -88,5 +89,13 @@ Route::middleware(['auth'])->group(function () {
             Route::put('/{id}/update', [TypeCashAdvanceController::class, 'update'])->name('type.cash.advance.update')->can('edit tipe kasbon');
             Route::delete('/{id}/destroy', [TypeCashAdvanceController::class, 'destroy'])->name('type.cash.advance.destroy')->can('hapus tipe kasbon');
         });
+    });
+
+    Route::prefix('expenditure')->group(function () {
+        Route::get('/', [ExpenditureController::class, 'index'])->name('expenditure.index')->can('lihat pengeluaran');
+        Route::post('/store', [ExpenditureController::class, 'store'])->name('expenditure.store')->can('tambah pengeluaran');
+        Route::get('/{id}/show', [ExpenditureController::class, 'show'])->name('expenditure.show')->can('edit pengeluaran');
+        Route::put('/{id}/update', [ExpenditureController::class, 'update'])->name('expenditure.update')->can('edit pengeluaran');
+        Route::delete('/{id}/destroy', [ExpenditureController::class, 'destroy'])->name('expenditure.destroy')->can('hapus pengeluaran');
     });
 });

@@ -47,6 +47,11 @@ class PermissionSeeder extends Seeder
             'lihat tipe kasbon',
             'edit tipe kasbon',
             'hapus tipe kasbon',
+
+            'tambah pengeluaran',
+            'lihat pengeluaran',
+            'edit pengeluaran',
+            'hapus pengeluaran',
         ];
 
 
