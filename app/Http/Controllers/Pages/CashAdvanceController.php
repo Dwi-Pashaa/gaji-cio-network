@@ -326,7 +326,7 @@ class CashAdvanceController extends Controller
             . "Nama: {$user->name}\n"
             . "Judul: {$cashAdvance->title}\n"
             . "Jumlah: Rp" . number_format($cashAdvance->amount, 0, ',', '.') . "\n"
-            . "Tanggal Disetujui: " . Carbon::now()->translatedFormat('l, d F Y - H:i');
+            . "Tanggal Ditolak: " . Carbon::now()->translatedFormat('l, d F Y - H:i');
 
         $encodedMsg = rawurlencode($message);
 
