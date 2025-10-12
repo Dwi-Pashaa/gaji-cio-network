@@ -71,7 +71,7 @@ class ExpenditureController extends Controller
         $message = "Konfirmasi Pengeluaran\n\n"
             . "Judul Pengeluaran: {$request->title}\n"
             . "Tipe Pengeluaran: {$type->name}\n"
-            . "Jumlah: Rp" . number_format($request->amount, 0, ',', '.') . "\n"
+            . "Jumlah: Rp" . number_format($amount, 0, ',', '.') . "\n"
             . "Tanggal Pengeluaran: " . Carbon::now()->translatedFormat('l, d F Y - H:i');
 
 
@@ -165,7 +165,7 @@ class ExpenditureController extends Controller
         $message = "Konfirmasi Pengeluaran\n\n"
             . "Judul Pengeluaran: {$request->title}\n"
             . "Tipe Pengeluaran: {$type->name}\n"
-            . "Jumlah: Rp" . number_format($request->amount, 0, ',', '.') . "\n"
+            . "Jumlah: Rp" . number_format($amount, 0, ',', '.') . "\n"
             . "Tanggal Pengeluaran: " . Carbon::now()->translatedFormat('l, d F Y - H:i');
 
         $encodedMsg = rawurlencode($message);
