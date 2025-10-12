@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Pages;
 
 use App\Http\Controllers\Controller;
 use App\Models\CashAdvance;
+use App\Models\CashAdvanceType;
 use App\Models\Salary;
 use App\Models\UserAllownce;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -69,7 +70,8 @@ class DashboardController extends Controller
             $netSalary = $baseSalary + $totalAllowance - $cashAdvance;
             return view("pages.dashboard", compact("salaryHistory", "baseSalary", "totalAllowance", "cashAdvance", "netSalary"));
         } else {
-            return view("pages.dashboard");
+            $type = CashAdvanceType::all();
+            return view("pages.dashboard", compact("type"));
         }
     }
 
