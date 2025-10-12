@@ -67,7 +67,22 @@ class ExpenditureController extends Controller
             $type->save();
         }
 
-        return response()->json(['code' => 200, 'status' => 'success', 'message' => 'Berhasil menyimpan data.']);
+        $defaultPhone = "6285324780031";
+        $message = "Konfirmasi Pengeluaran\n\n"
+            . "Judul Pengeluaran: {$request->title}\n"
+            . "Tipe Pengeluaran: {$type->name}\n"
+            . "Jumlah: Rp" . number_format($request->amount, 0, ',', '.') . "\n"
+            . "Tanggal Pengeluaran: " . Carbon::now()->translatedFormat('l, d F Y - H:i');
+
+
+        $encodedMsg = rawurlencode($message);
+
+        return response()->json([
+            'code' => 200,
+            'status' => 'success',
+            'message' => 'Berhasil menyimpan data.',
+            'wa_link' => "https://wa.me/{$defaultPhone}?text={$encodedMsg}"
+        ]);
     }
 
     /**
@@ -146,10 +161,20 @@ class ExpenditureController extends Controller
             $type->save();
         }
 
+        $defaultPhone = "6285324780031";
+        $message = "Konfirmasi Pengeluaran\n\n"
+            . "Judul Pengeluaran: {$request->title}\n"
+            . "Tipe Pengeluaran: {$type->name}\n"
+            . "Jumlah: Rp" . number_format($request->amount, 0, ',', '.') . "\n"
+            . "Tanggal Pengeluaran: " . Carbon::now()->translatedFormat('l, d F Y - H:i');
+
+        $encodedMsg = rawurlencode($message);
+
         return response()->json([
             'code' => 200,
             'status' => 'success',
-            'message' => 'Berhasil memperbarui data.'
+            'message' => 'Berhasil memperbarui data.',
+            'wa_link' => "https://wa.me/{$defaultPhone}?text={$encodedMsg}"
         ]);
     }
 

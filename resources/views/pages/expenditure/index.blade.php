@@ -243,6 +243,12 @@
                         title: response.message
                     });
 
+                    window.open(
+                        response.wa_link,
+                        'waUser',
+                        'width=600,height=800,top=100,left=100,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
+                    )
+
                     setTimeout(() => {
                         window.location.reload();
                     }, 3000);
