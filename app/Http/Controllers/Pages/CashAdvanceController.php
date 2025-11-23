@@ -306,6 +306,12 @@ class CashAdvanceController extends Controller
             ]);
         }
 
+        $type = CashAdvanceType::find($cashAdvance->type_id);
+        if ($type) {
+            $type->amount += $cashAdvance->amount;
+            $type->save();
+        }
+
         $defaultPhone = "6285324780031";
         $user = User::find($cashAdvance->user_id);
 
