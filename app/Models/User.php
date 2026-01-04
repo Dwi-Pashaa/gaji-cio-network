@@ -55,4 +55,9 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Allowance::class, 'user_allownce', 'user_id', 'allowance_id');
     }
+
+    public function workday()
+    {
+        return $this->hasMany(UserWorkDay::class, 'user_id', 'id');
+    }
 }

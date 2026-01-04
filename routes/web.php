@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Pages\Absen\AbsenController;
+use App\Http\Controllers\Pages\Absen\LeaveController;
+use App\Http\Controllers\Pages\Absen\SettingController;
 use App\Http\Controllers\Pages\AllowanceController;
 use App\Http\Controllers\Pages\CashAdvanceController;
 use App\Http\Controllers\Pages\DashboardController;
@@ -48,6 +51,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{id}/edit', [UserController::class, 'edit'])->name('user.edit')->can('edit user');
         Route::put('/{id}/update', [UserController::class, 'update'])->name('user.update')->can('edit user');
         Route::delete('/{id}/destroy', [UserController::class, 'destroy'])->name('user.destroy')->can('hapus user');
+        Route::get('/{id}/workday', [UserController::class, 'workday'])->name('user.workday')->can('edit user');
+        Route::put('/{id}/save-workday', [UserController::class, 'saveWorkDay'])->name('user.saveWorkDay')->can('edit user');
     });
 
     Route::prefix('allowance')->group(function () {
@@ -97,5 +102,29 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{id}/show', [ExpenditureController::class, 'show'])->name('expenditure.show')->can('edit pengeluaran');
         Route::put('/{id}/update', [ExpenditureController::class, 'update'])->name('expenditure.update')->can('edit pengeluaran');
         Route::delete('/{id}/destroy', [ExpenditureController::class, 'destroy'])->name('expenditure.destroy')->can('hapus pengeluaran');
+    });
+
+    Route::prefix('absensi')->group(function () {
+        Route::prefix('setting')->group(function () {
+            Route::get('/', [SettingController::class, 'index'])->name('absen.setting.index')->can('lihat pengaturan absensi');
+            Route::post('/store', [SettingController::class, 'store'])->name('absen.setting.store')->can('lihat pengaturan absensi');
+            Route::post('/toggle-active-absen', [SettingController::class, 'toggleActiveAbsen'])->name('absen.setting.toggleActiveAbsen')->can('lihat pengaturan absensi');
+        });
+
+        Route::prefix('list')->group(function () {
+            Route::get('/', [AbsenController::class, 'index'])->name('absen.list.index')->can('lihat absensi');
+            Route::get('/rekap', [AbsenController::class, 'rekap'])->name('absen.list.rekap')->can('rekap absensi');
+            Route::post('/store', [AbsenController::class, 'store'])->name('absen.list.store')->can('buat absensi');
+        });
+
+        Route::prefix('leave')->group(function () {
+            Route::get('/', [LeaveController::class, 'index'])->name('leave.index')->can('lihat pengajuan izin/cuti');
+            Route::post('/store', [LeaveController::class, 'store'])->name('leave.store')->can('buat pengajuan izin/cuti');
+            Route::get('/{id}/show', [LeaveController::class, 'show'])->name('leave.show')->can('edit pengajuan izin/cuti');
+            Route::put('/{id}/update', [LeaveController::class, 'update'])->name('leave.update')->can('edit pengajuan izin/cuti');
+            Route::delete('/{id}/destroy', [LeaveController::class, 'destroy'])->name('leave.destroy')->can('hapus pengajuan izin/cuti');
+            Route::put('/{id}/approved', [LeaveController::class, 'approved'])->name('leave.approved')->can('approved pengajuan izin/cuti');
+            Route::put('/{id}/rejected', [LeaveController::class, 'rejected'])->name('leave.rejected')->can('rejected pengajuan izin/cuti');
+        });
     });
 });

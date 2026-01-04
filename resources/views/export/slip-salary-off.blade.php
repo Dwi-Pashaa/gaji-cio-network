@@ -150,11 +150,6 @@
                     <td class="text-right">-</td>
                 </tr>
             @endforelse
-
-            <tr>
-                <td><strong>Total Kasbon</strong></td>
-                <td class="text-right"><strong>{{ number_format($cashAdvanceTotal, 0, ',', '.') }}</strong></td>
-            </tr>
         </tbody>
         <tfoot>
             <tr>

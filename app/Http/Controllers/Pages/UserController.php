@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Pages;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\UserWorkDay;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 
@@ -24,8 +26,8 @@ class UserController extends Controller
                     ->orWhere('email', 'like', "%$search%");
             })
             ->orderBy('id', 'DESC')
-            ->paginate($sort);
-
+            ->paginate($sort)
+            ->appends($request->query());
 
         return view("pages.user.index", compact("users"));
     }
@@ -116,5 +118,38 @@ class UserController extends Controller
         $user->delete();
 
         return response()->json(['code' => 200, 'status' => 'success', 'message' => 'Berhasil menghapus data.']);
+    }
+
+    public function workday(string $id)
+    {
+        $user = User::with(['workday'])->find($id);
+
+        return view("pages.user.workday", compact("user"));
+    }
+
+    public function saveWorkDay(Request $request, $id)
+    {
+        $request->validate([
+            'weekday' => 'required|array',
+            'weekday.*' => 'in:0,1,2,3,4,5,6',
+        ]);
+
+        DB::transaction(function () use ($request, $id) {
+
+            UserWorkDay::where('user_id', $id)->delete();
+
+            $data = collect($request->weekday)->map(function ($day) use ($id) {
+                return [
+                    'user_id'    => $id,
+                    'weekday'    => $day,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            })->toArray();
+
+            UserWorkday::insert($data);
+        });
+
+        return back()->with('success', 'Hari kerja berhasil disimpan.');
     }
 }

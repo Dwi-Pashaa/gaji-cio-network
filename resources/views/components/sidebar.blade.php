@@ -131,6 +131,41 @@
                         </a>
                     </li>
                 @endcan
+                @canany(['lihat absensi', 'lihat pengaturan absensi', 'lihat pengajuan izin/cuti'])
+                    <li class="nav-item dropdown {{ Route::is(['absen.setting*']) ? 'active' : '' }}">
+                        <a class="nav-link dropdown-toggle" href="#navbar-help" data-bs-toggle="dropdown"
+                            data-bs-auto-close="false" role="button" aria-expanded="false">
+                            <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-cash-banknote-minus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" /><path d="M12 18h-7a2 2 0 0 1 -2 -2v-8a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v7" /><path d="M18 12h.01" /><path d="M6 12h.01" /><path d="M16 19h6" /></svg>
+                            </span>
+                            <span class="nav-link-title">
+                                Absensi
+                            </span>
+                        </a>
+                        <div class="dropdown-menu {{ Route::is(['absen.setting*']) ? 'show' : '' }}">
+                            @can('lihat pengaturan absensi')
+                                <a class="dropdown-item {{ Route::is('absen.setting.index') ? 'active' : '' }}" href="{{ route('absen.setting.index') }}" rel="noopener">
+                                    Pengaturan Absensi
+                                </a>
+                            @endcan
+                            @can('rekap absensi')
+                                <a class="dropdown-item {{ Route::is('absen.list.rekap') ? 'active' : '' }}" href="{{ route('absen.list.rekap') }}" rel="noopener">
+                                    Laporan Absensi
+                                </a>
+                            @endcan
+                            @can('lihat absensi')
+                                <a class="dropdown-item {{ Route::is('absen.list.index') ? 'active' : '' }}" href="{{ route('absen.list.index') }}" rel="noopener">
+                                    Absensi
+                                </a>
+                            @endcan
+                            @can('lihat pengajuan izin/cuti')
+                                <a class="dropdown-item {{ Route::is('leave.index') ? 'active' : '' }}" href="{{ route('leave.index') }}" rel="noopener">
+                                    Pengajuan Izin/Cuti
+                                </a>
+                            @endcan
+                        </div>
+                    </li>
+                @endcanany
                 <li class="nav-item">
                     <a class="nav-link" href="{{ route('logout') }}">
                         <span class="nav-link-icon d-md-none d-lg-inline-block">
