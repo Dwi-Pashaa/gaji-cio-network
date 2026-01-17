@@ -143,9 +143,14 @@
                             </span>
                         </a>
                         <div class="dropdown-menu {{ Route::is(['absen.setting*']) ? 'show' : '' }}">
-                            @can('lihat pengaturan absensi')
+                            {{-- @can('lihat pengaturan absensi')
                                 <a class="dropdown-item {{ Route::is('absen.setting.index') ? 'active' : '' }}" href="{{ route('absen.setting.index') }}" rel="noopener">
                                     Pengaturan Absensi
+                                </a>
+                            @endcan --}}
+                            @can('lihat koordinat')
+                                <a class="dropdown-item {{ Route::is('koordinat.index') ? 'active' : '' }}" href="{{ route('koordinat.index') }}" rel="noopener">
+                                    Koordinat Lokasi Absen
                                 </a>
                             @endcan
                             @can('rekap absensi')

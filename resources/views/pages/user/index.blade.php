@@ -88,6 +88,9 @@
                             {{ \Carbon\Carbon::parse($item->created_at)->format('d/m/Y H:i:s') }}
                         </td>
                         <td>
+                            <a href="{{ route('user.setting', ['id' => $item->id]) }}" class="btn btn-secondary-info btn-md">
+                                Set Absensi
+                            </a>
                             <a href="{{ route('user.workday', ['id' => $item->id]) }}" class="btn btn-outline-info btn-md">
                                 Hari Kerja
                             </a>

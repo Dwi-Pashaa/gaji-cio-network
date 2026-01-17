@@ -13,7 +13,8 @@ return new class extends Migration
     {
         Schema::create('attendance_settings', function (Blueprint $table) {
             $table->id();
-
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('koordinat_id');
             $table->time('start_work')->nullable();
             $table->time('end_work')->nullable();
 
@@ -22,6 +23,11 @@ return new class extends Migration
             $table->decimal('cuti', 8, 2)->default(0);
             $table->decimal('telat', 8, 2)->default(0);
             $table->timestamps();
+
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('CASCADE');
+            $table->foreign('koordinat_id')->references('id')->on('koordinat')->onDelete('CASCADE');
+            $table->index('user_id');
+            $table->index('koordinat_id');
         });
     }
 

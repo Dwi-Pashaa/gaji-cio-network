@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Pages;
 
 use App\Http\Controllers\Controller;
+use App\Models\AttandanceSetting;
+use App\Models\Koordinat;
 use App\Models\User;
 use App\Models\UserWorkDay;
 use Illuminate\Http\Request;
@@ -151,5 +153,72 @@ class UserController extends Controller
         });
 
         return back()->with('success', 'Hari kerja berhasil disimpan.');
+    }
+
+    /**
+     * Display a listing of the resource.
+     */
+    public function setting(Request $request, $id)
+    {
+        $setting = AttandanceSetting::where('user_id', $id)->first();
+
+        $user = User::find($id);
+
+        $coordinat = Koordinat::all();
+
+        return view("pages.user.set-absensi", compact('setting', 'user', 'coordinat'));
+    }
+
+    /**
+     * Store the specified resource in storage.
+     */
+    public function saveSetting(Request $request)
+    {
+        $request->validate([
+            'koordinat_id' => 'required',
+            'start_work' => 'required',
+            'end_work' => 'required',
+            'alpha' => 'required',
+            'cuti' => 'required',
+            'telat' => 'required',
+        ]);
+
+        $post = $request->all();
+
+        $alpha = preg_replace('/[^0-9]/', '', $request->alpha);
+        $cuti = preg_replace('/[^0-9]/', '', $request->cuti);
+        $telat = preg_replace('/[^0-9]/', '', $request->telat);
+
+        $post['alpha'] = $alpha;
+        $post['cuti'] = $cuti;
+        $post['telat'] = $telat;
+
+        AttandanceSetting::updateOrCreate(
+            ['user_id' => $request->user_id],
+            $post
+        );
+
+
+        return redirect()->back()->with('success', 'Berhasil menyimpan pengaturan absen.');
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function toggleActiveAbsen(Request $request)
+    {
+        DB::table('setting')
+            ->updateOrInsert(
+                [
+                    'user_id' => $request->user_id
+                ],
+                [
+                    'key' => 'fiture_absen',
+                    'value' => $request->value,
+                    'updated_at' => now(),
+                ],
+            );
+
+        return back()->with('success', 'Pengaturan berhasil diperbarui');
     }
 }

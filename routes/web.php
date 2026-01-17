@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Pages\Absen\AbsenController;
+use App\Http\Controllers\Pages\Absen\KoordinatController;
 use App\Http\Controllers\Pages\Absen\LeaveController;
 use App\Http\Controllers\Pages\Absen\SettingController;
 use App\Http\Controllers\Pages\AllowanceController;
@@ -53,6 +54,10 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/{id}/destroy', [UserController::class, 'destroy'])->name('user.destroy')->can('hapus user');
         Route::get('/{id}/workday', [UserController::class, 'workday'])->name('user.workday')->can('edit user');
         Route::put('/{id}/save-workday', [UserController::class, 'saveWorkDay'])->name('user.saveWorkDay')->can('edit user');
+
+        Route::get('/{id}/set-absensi', [UserController::class, 'setting'])->name('user.setting');
+        Route::post('/save-setting', [UserController::class, 'saveSetting'])->name('user.setting.store');
+        Route::post('/toggle-active-absen', [UserController::class, 'toggleActiveAbsen'])->name('user.setting.toggleActiveAbsen');
     });
 
     Route::prefix('allowance')->group(function () {
@@ -105,10 +110,12 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::prefix('absensi')->group(function () {
-        Route::prefix('setting')->group(function () {
-            Route::get('/', [SettingController::class, 'index'])->name('absen.setting.index')->can('lihat pengaturan absensi');
-            Route::post('/store', [SettingController::class, 'store'])->name('absen.setting.store')->can('lihat pengaturan absensi');
-            Route::post('/toggle-active-absen', [SettingController::class, 'toggleActiveAbsen'])->name('absen.setting.toggleActiveAbsen')->can('lihat pengaturan absensi');
+        Route::prefix('coordinat')->group(function () {
+            Route::get('/', [KoordinatController::class, 'index'])->name('koordinat.index')->can('lihat koordinat');
+            Route::post('/store', [KoordinatController::class, 'store'])->name('koordinat.store')->can('buat koordinat');
+            Route::get('/{id}/show', [KoordinatController::class, 'show'])->name('koordinat.show')->can('edit koordinat');
+            Route::put('/{id}/update', [KoordinatController::class, 'update'])->name('koordinat.update')->can('edit koordinat');
+            Route::delete('/{id}/destroy', [KoordinatController::class, 'destroy'])->name('koordinat.destroy')->can('edit koordinat');
         });
 
         Route::prefix('list')->group(function () {

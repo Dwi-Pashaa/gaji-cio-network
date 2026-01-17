@@ -15,5 +15,7 @@ class AttandanceSetting extends Model
         'alpha',
         'cuti',
         'telat',
+        'user_id',
+        'koordinat_id'
     ];
 }

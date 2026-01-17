@@ -11,6 +11,7 @@ use App\Models\Salary;
 use App\Models\UserAllownce;
 use App\Models\UserWorkDay;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -20,14 +21,33 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
+        $role = $user->getRoleNames()->first();
 
-        $setting = DB::table('setting')->latest()->first();
+        if ($role === 'Admin') {
+            return $this->isAdmin();
+        }
 
-        if ($setting->value === 'active') {
-            return $this->isOnAbsen($user);
-        } else {
+        $setting = DB::table('setting')
+            ->where('user_id', $user->id)
+            ->whereNotNull('user_id')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $setting) {
             return $this->isOffAbsen($user);
         }
+
+        if ($setting->value !== 'active') {
+            return $this->isOffAbsen($user);
+        }
+
+        return $this->isOnAbsen($user);
+    }
+
+    private function isAdmin()
+    {
+        $type = CashAdvanceType::all();
+        return view("pages.dashboard.index", compact("type"));
     }
 
     private function isOnAbsen($user)
@@ -36,15 +56,13 @@ class DashboardController extends Controller
 
             $user = Auth::user();
 
-            $setting = DB::table('setting')->latest()->first();
+            $setting = DB::table('setting')->where('user_id', Auth::id())->first();
+            $attandaceSetting = AttandanceSetting::where('user_id', Auth::id())->first();
 
-            $attandaceSetting = AttandanceSetting::latest()->first();
+            $attendanceStartDate = Carbon::parse($setting->created_at)->startOfDay();
 
-            $attendanceStartDate = \Carbon\Carbon::parse($setting->created_at)
-                ->startOfMonth();
-
-            $baseSalary     = $user->salary->base_salary ?? 0;
-            $totalAllowance = $user->allowance->sum('amount');
+            $baseSalary      = $user->salary->base_salary ?? 0;
+            $totalAllowance  = $user->allowance->sum('amount');
 
             $month = now()->month;
             $year  = now()->year;
@@ -66,7 +84,7 @@ class DashboardController extends Controller
                 ->first();
 
             if ($firstSalary) {
-                $start = \Carbon\Carbon::parse($firstSalary->effective_date)->startOfMonth();
+                $start = Carbon::parse($firstSalary->effective_date)->startOfMonth();
             } else {
                 $start = now()->startOfMonth();
             }
@@ -87,7 +105,9 @@ class DashboardController extends Controller
                 $telat = 0;
                 $attendancePenalty = 0;
 
-                if ($start->greaterThanOrEqualTo($attendanceStartDate)) {
+                // 👉 BULAN INI SUDAH MASUK MASA ABSEN
+                if ($start->endOfMonth()->greaterThanOrEqualTo($attendanceStartDate)) {
+
                     $workdays = UserWorkDay::where('user_id', $user->id)
                         ->pluck('weekday')
                         ->toArray();
@@ -98,18 +118,24 @@ class DashboardController extends Controller
                         ->get()
                         ->keyBy('date');
 
-                    $daysInMonth = \Carbon\Carbon::create($tahun, $bulan, 1)->daysInMonth;
+                    $daysInMonth = Carbon::create($tahun, $bulan, 1)->daysInMonth;
 
                     for ($d = 1; $d <= $daysInMonth; $d++) {
 
                         $tanggal = sprintf('%04d-%02d-%02d', $tahun, $bulan, $d);
+                        $tanggalCarbon = Carbon::parse($tanggal);
                         $weekday = date('w', strtotime($tanggal));
 
-                        if (! in_array($weekday, $workdays)) continue;
+                        // ❌ Bukan hari kerja
+                        if (!in_array($weekday, $workdays)) continue;
 
-                        if ($tanggal > now()->toDateString()) continue;
+                        // ❌ Tanggal masa depan
+                        if ($tanggalCarbon->gt(now())) continue;
 
-                        if (! isset($attendance[$tanggal])) {
+                        // 🔥 SEBELUM SETTING → JANGAN DIHITUNG
+                        if ($tanggalCarbon->lt($attendanceStartDate)) continue;
+
+                        if (!isset($attendance[$tanggal])) {
                             $alpha++;
                         }
                     }
@@ -134,12 +160,10 @@ class DashboardController extends Controller
                     'base_salary'        => $baseSalary,
                     'allowance'          => $totalAllowance,
                     'cash_advance'       => $cashAdvanceMonth,
-
                     'alpha'              => $alpha,
                     'cuti'               => $cuti,
                     'telat'              => $telat,
                     'attendance_penalty' => $attendancePenalty,
-
                     'net_salary'         => $netSalaryMonth,
                 ]);
 
@@ -147,7 +171,6 @@ class DashboardController extends Controller
             }
 
             $salaryHistory = $months;
-
             $currentMonthData = $salaryHistory->last();
 
             $currentAttendancePenalty = $currentMonthData['attendance_penalty'] ?? 0;
@@ -168,10 +191,6 @@ class DashboardController extends Controller
                     "currentAttendancePenalty"
                 )
             );
-        } else {
-
-            $type = CashAdvanceType::all();
-            return view("pages.dashboard.index", compact("type"));
         }
     }
 
@@ -229,88 +248,152 @@ class DashboardController extends Controller
 
             $netSalary = $baseSalary + $totalAllowance - $cashAdvance;
             return view("pages.dashboard.index", compact("salaryHistory", "baseSalary", "totalAllowance", "cashAdvance", "netSalary"));
-        } else {
-            $type = CashAdvanceType::all();
-            return view("pages.dashboard.index", compact("type"));
         }
     }
 
     public function slip($month, $year)
     {
-        $setting = DB::table('setting')->latest()->first();
+        $user = Auth::user();
 
-        if ($setting->value === 'active') {
-            return $this->slipAbsenOn($month, $year);
-        } else {
+        $setting = DB::table('setting')
+            ->where('user_id', $user->id)
+            ->whereNotNull('user_id')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $setting) {
             return $this->slipAbsenOff($month, $year);
         }
+
+        if ($setting->value !== 'active') {
+            return $this->slipAbsenOff($month, $year);
+        }
+
+        return $this->slipAbsenOn($month, $year);
     }
 
     private function slipAbsenOn($month, $year)
     {
         $user = Auth::user();
 
-        $setting = DB::table('setting')->latest()->first();
-        $attendanceStartDate = \Carbon\Carbon::parse($setting->created_at)
-            ->startOfMonth();
+        // =========================
+        // SETTING ABSENSI USER
+        // =========================
+        $setting = DB::table('setting')
+            ->where('user_id', $user->id)
+            ->orderByDesc('id')
+            ->first();
 
-        $slipDate = \Carbon\Carbon::create($year, $month, 1)->startOfMonth();
+        if (! $setting) {
+            abort(403, 'Setting absensi belum tersedia.');
+        }
 
+        // tanggal mulai absensi (real start)
+        $attendanceStartDate = Carbon::parse($setting->created_at)->startOfDay();
+
+        // bulan slip
+        $slipDate = Carbon::create($year, $month, 1)->startOfMonth();
+
+        // =========================
+        // GAJI
+        // =========================
         $baseSalary     = $user->salary->base_salary ?? 0;
         $allowances     = $user->allowance;
         $totalAllowance = $allowances->sum('amount');
 
-        $attandaceSetting = AttandanceSetting::latest()->first();
+        // =========================
+        // POTONGAN ABSEN
+        // =========================
+        $attendanceSetting = AttandanceSetting::where('user_id', $user->id)->first();
 
         $alpha = 0;
         $cuti  = 0;
         $telat = 0;
         $attendancePenalty = 0;
 
-        if ($slipDate->greaterThanOrEqualTo($attendanceStartDate)) {
+        // =========================
+        // HITUNG ABSEN
+        // =========================
+        if ($slipDate->endOfMonth()->greaterThanOrEqualTo($attendanceStartDate)) {
 
-            // hari kerja user (format harus 0–6)
+            $today = now()->toDateString();
+
+            // hari kerja user (0–6)
             $workdays = UserWorkDay::where('user_id', $user->id)
                 ->pluck('weekday')
                 ->toArray();
 
+            // absensi bulan ini
             $attendance = Attendance::where('user_id', $user->id)
                 ->whereYear('date', $year)
                 ->whereMonth('date', $month)
                 ->get()
-                ->keyBy(function ($item) {
-                    return \Carbon\Carbon::parse($item->date)->format('Y-m-d');
-                });
+                ->keyBy(fn($item) => Carbon::parse($item->date)->format('Y-m-d'));
 
-            $daysInMonth = \Carbon\Carbon::create($year, $month, 1)->daysInMonth;
+            $daysInMonth = Carbon::create($year, $month, 1)->daysInMonth;
 
             for ($d = 1; $d <= $daysInMonth; $d++) {
 
                 $tanggal = sprintf('%04d-%02d-%02d', $year, $month, $d);
                 $weekday = date('w', strtotime($tanggal));
 
+                // ❌ bukan hari kerja
                 if (! in_array($weekday, $workdays)) {
                     continue;
                 }
 
-                if ($tanggal > now()->toDateString()) {
+                // ❌ sebelum absensi aktif
+                if ($tanggal < $attendanceStartDate->toDateString()) {
                     continue;
                 }
 
-                if (! isset($attendance[$tanggal])) {
+                $absen = $attendance[$tanggal] ?? null;
+
+                // =========================
+                // HARI INI
+                // =========================
+                if ($tanggal === $today && ! $absen) {
+                    continue;
+                }
+
+                // =========================
+                // TANGGAL MASA DEPAN
+                // =========================
+                if ($tanggal > $today) {
+
+                    // ✔ hanya dihitung jika ada izin/cuti
+                    if ($absen && $absen->status === 'izin') {
+                        $cuti++;
+                    }
+
+                    continue;
+                }
+
+                // =========================
+                // TANGGAL SUDAH LEWAT
+                // =========================
+                if (! $absen) {
                     $alpha++;
+                    continue;
+                }
+
+                if ($absen->status === 'izin') {
+                    $cuti++;
+                } elseif ($absen->status === 'terlambat') {
+                    $telat++;
                 }
             }
 
-            $cuti  = $attendance->where('status', 'izin')->count();
-            $telat = $attendance->where('status', 'terlambat')->count();
-
+            // total potongan
             $attendancePenalty =
-                ($alpha * ($attandaceSetting->alpha ?? 0)) +
-                ($cuti  * ($attandaceSetting->cuti ?? 0)) +
-                ($telat * ($attandaceSetting->telat ?? 0));
+                ($alpha * ($attendanceSetting->alpha ?? 0)) +
+                ($cuti  * ($attendanceSetting->cuti ?? 0)) +
+                ($telat * ($attendanceSetting->telat ?? 0));
         }
 
+        // =========================
+        // KASBON
+        // =========================
         $cashAdvance = CashAdvance::where('user_id', $user->id)
             ->where('status', 'approved')
             ->whereMonth('request_date', $month)
@@ -319,11 +402,17 @@ class DashboardController extends Controller
 
         $cashAdvanceTotal = $cashAdvance->sum('amount');
 
+        // =========================
+        // GAJI BERSIH
+        // =========================
         $netSalary = $baseSalary
             + $totalAllowance
             - $cashAdvanceTotal
             - $attendancePenalty;
 
+        // =========================
+        // DATA PDF
+        // =========================
         $data = [
             'user'              => $user,
             'year'              => $year,
@@ -335,9 +424,9 @@ class DashboardController extends Controller
             'alpha'             => $alpha,
             'cuti'              => $cuti,
             'telat'             => $telat,
-            'potongan_alpa'     => $attandaceSetting->alpha ?? 0,
-            'potongan_cuti'     => $attandaceSetting->cuti ?? 0,
-            'potongan_telat'    => $attandaceSetting->telat ?? 0,
+            'potongan_alpa'     => $attendanceSetting->alpha ?? 0,
+            'potongan_cuti'     => $attendanceSetting->cuti ?? 0,
+            'potongan_telat'    => $attendanceSetting->telat ?? 0,
             'attendancePenalty' => $attendancePenalty,
 
             'cashAdvance'       => $cashAdvance,

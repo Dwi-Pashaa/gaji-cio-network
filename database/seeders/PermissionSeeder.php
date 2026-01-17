@@ -53,17 +53,22 @@ class PermissionSeeder extends Seeder
             // 'edit pengeluaran',
             // 'hapus pengeluaran',
 
-            'lihat pengaturan absensi',
-            'lihat absensi',
-            'buat absensi',
-            'edit absensi',
-            'lihat pengajuan izin/cuti',
-            'buat pengajuan izin/cuti',
-            'edit pengajuan izin/cuti',
-            'hapus pengajuan izin/cuti',
-            'approved pengajuan izin/cuti',
-            'rejected pengajuan izin/cuti',
-            'rekap absensi'
+            // 'lihat pengaturan absensi',
+            // 'lihat absensi',
+            // 'buat absensi',
+            // 'edit absensi',
+            // 'lihat pengajuan izin/cuti',
+            // 'buat pengajuan izin/cuti',
+            // 'edit pengajuan izin/cuti',
+            // 'hapus pengajuan izin/cuti',
+            // 'approved pengajuan izin/cuti',
+            // 'rejected pengajuan izin/cuti',
+            // 'rekap absensi'
+
+            'lihat koordinat',
+            'buat koordinat',
+            'edit koordinat',
+            'hapus koordinat',
         ];
 
 

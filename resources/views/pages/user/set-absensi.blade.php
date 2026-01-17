@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title')
-    Pengaturan Absensi
+    Set Absensi - {{ $user->name }}
 @endsection
 
 @push('css')
@@ -15,9 +15,10 @@
             <b>
                 Pengaturan Waktu Absensi Kerja
             </b>
-            <form action="{{ route('absen.setting.toggleActiveAbsen') }}" id="form-switch" method="POST">
+            <form action="{{ route('user.setting.toggleActiveAbsen') }}" id="form-switch" method="POST">
                 @csrf
 
+                <input type="hidden" name="user_id" value="{{ $user->id }}">
                 <input type="hidden" name="value" value="{{ $isAbsenOn == true ? 'inactive' : 'active' }}">
 
                 <button
@@ -29,10 +30,27 @@
                 </button>
             </form>
         </div>
-        <form action="{{ route('absen.setting.store') }}" method="POST">
+        <form action="{{ route('user.setting.store') }}" method="POST">
             @csrf
+            <input type="hidden" name="user_id" value="{{ $user->id }}">
             <div class="card-body border-bottom py-3">
                 <div class="row">
+                    <div class="col-lg-12">
+                        <div class="mb-3">
+                            <label class="form-label">Pilih Lokasi Absensi</label>
+                            <select name="koordinat_id" id="koordinat_id" class="form-control @error('koordinat_id') is-invalid @enderror">
+                                <option value="">Pilih</option>    
+                                @foreach ($coordinat as $crd)
+                                    <option value="{{ $crd->id }}" {{ old('koordinat_id', $setting?->koordinat_id) == $crd->id ? 'selected' : '' }}>{{ $crd->name }} ( {{ $crd->radius }} Meter )</option>
+                                @endforeach
+                            </select> 
+                            @error('start_work')
+                                <span class="invalid-feedback">
+                                    {{ $message }}
+                                </span>
+                            @enderror
+                        </div>
+                    </div>
                     <div class="col-lg-6">
                         <div class="mb-3">
                             <label class="form-label">Jam Mulai Absensi</label>

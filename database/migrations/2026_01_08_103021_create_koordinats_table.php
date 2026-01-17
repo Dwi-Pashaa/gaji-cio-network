@@ -11,15 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('setting', function (Blueprint $table) {
+        Schema::create('koordinat', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('user_id');
-            $table->string('key')->unique();
-            $table->string('value');
+            $table->string('name');
+            $table->string('lat');
+            $table->string('lng');
+            $table->integer('radius');
             $table->timestamps();
-
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('CASCADE');
-            $table->index('user_id');
         });
     }
 
@@ -28,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('setting');
+        Schema::dropIfExists('koordinat');
     }
 };

@@ -60,4 +60,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserWorkDay::class, 'user_id', 'id');
     }
+
+    public function attandanceSetting()
+    {
+        return $this->hasMany(AttandanceSetting::class, 'user_id', 'id');
+    }
 }
