@@ -5,8 +5,8 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Pages\Absen\AbsenController;
 use App\Http\Controllers\Pages\Absen\KoordinatController;
 use App\Http\Controllers\Pages\Absen\LeaveController;
-use App\Http\Controllers\Pages\Absen\SettingController;
 use App\Http\Controllers\Pages\AllowanceController;
+use App\Http\Controllers\Pages\SettingController;
 use App\Http\Controllers\Pages\CashAdvanceController;
 use App\Http\Controllers\Pages\DashboardController;
 use App\Http\Controllers\Pages\ExpenditureController;
@@ -148,5 +148,11 @@ Route::middleware(['auth'])->group(function () {
             Route::put('/{id}/approved', [LeaveController::class, 'approved'])->name('leave.approved')->can('approved pengajuan izin/cuti');
             Route::put('/{id}/rejected', [LeaveController::class, 'rejected'])->name('leave.rejected')->can('rejected pengajuan izin/cuti');
         });
+    });
+
+    Route::prefix('settings')->group(function () {
+        Route::get('/', [SettingController::class, 'index'])->name('settings.index');
+        Route::post('/otp-channel', [SettingController::class, 'updateOtpChannel'])->name('settings.otpChannel.update');
+        Route::post('/test-email', [SettingController::class, 'testEmail'])->name('settings.testEmail');
     });
 });

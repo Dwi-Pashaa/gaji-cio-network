@@ -223,14 +223,14 @@
         </div>
     </div>
 
-    {{-- MODAL MULTI-STEP RESET PASSWORD OTP WHATSAPP --}}
+    {{-- MODAL MULTI-STEP RESET PASSWORD OTP --}}
     <div class="modal modal-blur fade" id="modal-forgot-password" tabindex="-1" role="dialog" aria-hidden="true" data-bs-backdrop="static">
         <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content shadow-lg border-0">
+            <div class="modal-content shadow-lg border-0" style="border-radius: 14px;">
                 <div class="modal-header bg-light py-3">
                     <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a9 9 0 0 1 6.36 15.36l-1.36 1.36a9 9 0 0 1 -12.72 0l-1.36 -1.36a9 9 0 0 1 6.36 -15.36z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
-                        Reset Password via WhatsApp
+                        Reset Password Akun
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -248,7 +248,7 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z" /><path d="M3 7l9 6l9 -6" /></svg>
                             </div>
                             <h4 class="fw-bold text-dark mb-1">Cari Akun Anda</h4>
-                            <p class="text-muted small mb-0">Masukkan alamat email terdaftar. Kode OTP verifikasi akan dikirimkan ke WhatsApp Anda.</p>
+                            <p class="text-muted small mb-0">Masukkan alamat email terdaftar. Kode OTP verifikasi akan dikirimkan untuk mereset password akun Anda.</p>
                         </div>
 
                         <form id="form-step-1" onsubmit="handleSendOtp(event)">
@@ -263,8 +263,8 @@
                             </div>
 
                             <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold d-flex align-items-center justify-content-center gap-2" id="btn-send-otp">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 21l1.65 -3.8a9 9 0 1 1 3.4 2.9l-5.05 .9" /><path d="M9 10a.5 .5 0 0 0 1 0v-1a.5 .5 0 0 0 -1 0v1a5 5 0 0 0 5 5h1a.5 .5 0 0 0 0 -1h-1a.5 .5 0 0 0 0 1" /></svg>
-                                Kirim Kode OTP WhatsApp
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 14l11 -11" /><path d="M21 3l-6.5 18a.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a.55 .55 0 0 1 0 -1l18 -6.5" /></svg>
+                                Kirim Kode OTP Verifikasi
                             </button>
                         </form>
                     </div>
@@ -272,12 +272,12 @@
                     {{-- STEP 2: VERIFIKASI KODE OTP --}}
                     <div id="step-2-container" class="d-none">
                         <div class="text-center mb-4">
-                            <div class="avatar avatar-lg bg-success-lt text-success rounded-circle mb-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 21l1.65 -3.8a9 9 0 1 1 3.4 2.9l-5.05 .9" /><path d="M9 10a.5 .5 0 0 0 1 0v-1a.5 .5 0 0 0 -1 0v1a5 5 0 0 0 5 5h1a.5 .5 0 0 0 0 -1h-1a.5 .5 0 0 0 0 1" /></svg>
+                            <div class="avatar avatar-lg bg-success-lt text-success rounded-circle mb-2" id="step-2-avatar-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z" /><path d="M3 7l9 6l9 -6" /></svg>
                             </div>
                             <h4 class="fw-bold text-dark mb-1">Verifikasi Kode OTP</h4>
-                            <p class="text-muted small mb-0">
-                                Kode 6 digit telah dikirim ke WhatsApp <strong class="text-dark" id="display-masked-phone">-</strong>
+                            <p class="text-muted small mb-0" id="step-2-description">
+                                Kode 6 digit telah dikirim ke <strong class="text-dark" id="display-masked-target">-</strong>
                             </p>
                         </div>
 
@@ -433,7 +433,20 @@
 
             if (response.ok && data.status) {
                 resetEmailState = email;
-                document.getElementById('display-masked-phone').innerText = data.masked_phone || 'WhatsApp';
+                const targetText = data.target || data.masked_email || data.masked_phone || data.email;
+                const channel = data.channel || 'email';
+
+                document.getElementById('display-masked-target').innerText = targetText;
+
+                // Update icon jika WhatsApp atau Email
+                const avatarIcon = document.getElementById('step-2-avatar-icon');
+                if (channel === 'whatsapp') {
+                    avatarIcon.className = 'avatar avatar-lg bg-green-lt text-success rounded-circle mb-2';
+                    avatarIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 21l1.65 -3.8a9 9 0 1 1 3.4 2.9l-5.05 .9" /><path d="M9 10a.5 .5 0 0 0 1 0v-1a.5 .5 0 0 0 -1 0v1a5 5 0 0 0 5 5h1a.5 .5 0 0 0 0 -1h-1a.5 .5 0 0 0 0 1" /></svg>';
+                } else {
+                    avatarIcon.className = 'avatar avatar-lg bg-primary-lt text-primary rounded-circle mb-2';
+                    avatarIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z" /><path d="M3 7l9 6l9 -6" /></svg>';
+                }
 
                 document.getElementById('step-1-container').classList.add('d-none');
                 document.getElementById('step-2-container').classList.remove('d-none');
@@ -447,7 +460,7 @@
             showModalAlert('danger', 'Terjadi kesalahan koneksi. Silakan coba lagi.');
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 21l1.65 -3.8a9 9 0 1 1 3.4 2.9l-5.05 .9" /><path d="M9 10a.5 .5 0 0 0 1 0v-1a.5 .5 0 0 0 -1 0v1a5 5 0 0 0 5 5h1a.5 .5 0 0 0 0 -1h-1a.5 .5 0 0 0 0 1" /></svg> Kirim Kode OTP WhatsApp';
+            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 14l11 -11" /><path d="M21 3l-6.5 18a.55 .55 0 0 1 -1 0l-3.5 -7l-7 -3.5a.55 .55 0 0 1 0 -1l18 -6.5" /></svg> Kirim Kode OTP Verifikasi';
         }
     }
 

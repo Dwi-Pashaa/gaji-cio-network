@@ -35,59 +35,104 @@ class ForgotPasswordController extends Controller
             ], 404);
         }
 
-        if (empty($user->phone)) {
-            return response()->json([
-                'status'  => false,
-                'message' => 'Akun Anda belum memiliki nomor WhatsApp terdaftar. Silakan hubungi Admin untuk bantuan.',
-            ], 422);
-        }
+        $channel = \App\Models\Setting::get('reset_password_otp_channel', 'email');
 
         // Generate 6 digit angka OTP
         $otp = (string) random_int(100000, 999999);
 
         // Simpan OTP dan waktu buat di tabel password_reset_tokens
-        // Token disimpan dengan format: OTP:PLAIN_OTP|SALT agar mudah diverifikasi dan aman
-        $tokenData = $otp;
-
         DB::table('password_reset_tokens')->updateOrInsert(
             ['email' => $user->email],
             [
-                'token'      => $tokenData,
+                'token'      => $otp,
                 'created_at' => Carbon::now(),
             ]
         );
 
-        // Kirim OTP via Mekari Qontak WhatsApp
-        $qontak = app(MekariQontakService::class);
-        $formattedPhone = MekariQontakService::formatPhone($user->phone);
+        if ($channel === 'whatsapp') {
+            if (empty($user->phone)) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Akun Anda belum memiliki nomor WhatsApp terdaftar. Silakan hubungi Admin untuk bantuan.',
+                ], 422);
+            }
 
-        $sendResult = $qontak->sendOtpPasswordReset(
-            userName:     $user->name,
-            userPhone:    $formattedPhone,
-            otpCode:      $otp,
-            validMinutes: 10
-        );
+            // Kirim OTP via Mekari Qontak WhatsApp
+            $qontak = app(MekariQontakService::class);
+            $formattedPhone = MekariQontakService::formatPhone($user->phone);
 
-        // Samarkan nomor telepon untuk privasi tampilan UI (contoh: 0857****6642)
-        $phoneStr = $user->phone;
-        $len = strlen($phoneStr);
-        if ($len > 6) {
-            $maskedPhone = substr($phoneStr, 0, 4) . str_repeat('*', max(2, $len - 7)) . substr($phoneStr, -3);
-        } else {
-            $maskedPhone = $phoneStr;
+            $sendResult = $qontak->sendOtpPasswordReset(
+                userName:     $user->name,
+                userPhone:    $formattedPhone,
+                otpCode:      $otp,
+                validMinutes: 10
+            );
+
+            // Samarkan nomor telepon untuk privasi tampilan UI (contoh: 0857****6642)
+            $phoneStr = $user->phone;
+            $len = strlen($phoneStr);
+            if ($len > 6) {
+                $maskedTarget = substr($phoneStr, 0, 4) . str_repeat('*', max(2, $len - 7)) . substr($phoneStr, -3);
+            } else {
+                $maskedTarget = $phoneStr;
+            }
+
+            Log::info('[Password Reset] OTP requested via WhatsApp', [
+                'user_id' => $user->id,
+                'email'   => $user->email,
+                'phone'   => $formattedPhone,
+            ]);
+
+            return response()->json([
+                'status'        => true,
+                'channel'       => 'whatsapp',
+                'target'        => $maskedTarget,
+                'masked_phone'  => $maskedTarget,
+                'message'       => 'Kode OTP berhasil dikirim ke nomor WhatsApp Anda (' . $maskedTarget . ').',
+                'email'         => $user->email,
+            ]);
         }
 
-        Log::info('[Password Reset] OTP requested', [
+        // Saluran default / Email
+        try {
+            \Illuminate\Support\Facades\Mail::to($user->email)->send(
+                new \App\Mail\ResetPasswordOtpMail($user->name, $otp, 10)
+            );
+        } catch (\Throwable $th) {
+            Log::error('[Password Reset] Gagal mengirim email OTP: ' . $th->getMessage(), [
+                'user_id' => $user->id,
+                'email'   => $user->email,
+            ]);
+
+            return response()->json([
+                'status'  => false,
+                'message' => 'Gagal mengirim email OTP. Pastikan konfigurasi Mail Server (SMTP) sudah benar.',
+            ], 500);
+        }
+
+        // Samarkan email untuk privasi tampilan UI (contoh: adm***@gmail.com)
+        $emailParts = explode('@', $user->email);
+        $namePart = $emailParts[0];
+        $domainPart = $emailParts[1] ?? '';
+        $nameLen = strlen($namePart);
+        if ($nameLen > 3) {
+            $maskedEmail = substr($namePart, 0, 3) . str_repeat('*', max(2, $nameLen - 3)) . '@' . $domainPart;
+        } else {
+            $maskedEmail = substr($namePart, 0, 1) . '***@' . $domainPart;
+        }
+
+        Log::info('[Password Reset] OTP requested via Email', [
             'user_id' => $user->id,
             'email'   => $user->email,
-            'phone'   => $formattedPhone,
         ]);
 
         return response()->json([
-            'status'       => true,
-            'message'      => 'Kode OTP berhasil dikirim ke nomor WhatsApp Anda (' . $maskedPhone . ').',
-            'masked_phone' => $maskedPhone,
-            'email'        => $user->email,
+            'status'        => true,
+            'channel'       => 'email',
+            'target'        => $maskedEmail,
+            'masked_email'  => $maskedEmail,
+            'message'       => 'Kode OTP berhasil dikirim ke alamat email Anda (' . $maskedEmail . ').',
+            'email'         => $user->email,
         ]);
     }
 
@@ -129,7 +174,7 @@ class ForgotPasswordController extends Controller
         if ($record->token !== $request->otp) {
             return response()->json([
                 'status'  => false,
-                'message' => 'Kode OTP yang Anda masukkan salah. Periksa kembali pesan WhatsApp Anda.',
+                'message' => 'Kode OTP yang Anda masukkan tidak sesuai. Periksa kembali pesan kode OTP yang Anda terima.',
             ], 422);
         }
 
