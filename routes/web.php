@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Pages\Absen\AbsenController;
 use App\Http\Controllers\Pages\Absen\KoordinatController;
@@ -28,6 +29,13 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [LoginController::class, 'index'])->name('login');
 Route::post('/login', [LoginController::class, 'login'])->name('post.login');
+
+// Fitur Lupa Password & Reset Password via OTP WhatsApp
+Route::prefix('forgot-password')->group(function () {
+    Route::post('/send-otp', [ForgotPasswordController::class, 'sendOtp'])->name('password.sendOtp');
+    Route::post('/verify-otp', [ForgotPasswordController::class, 'verifyOtp'])->name('password.verifyOtp');
+    Route::post('/reset', [ForgotPasswordController::class, 'resetPassword'])->name('password.reset');
+});
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/logout', [LoginController::class, 'logout'])->name('logout');
@@ -71,12 +79,17 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('salary')->group(function () {
         Route::get('/', [SalaryController::class, 'index'])->name('salary.index')->can('lihat gaji karyawan');
         Route::get('/recap', [SalaryController::class, 'recap'])->name('salary.recap')->can('rekap gaji');
+        Route::get('/payment-history', [SalaryController::class, 'paymentHistory'])->name('salary.payment.index')->can('lihat gaji karyawan');
+        Route::get('/payment/{id}/invoice', [SalaryController::class, 'invoice'])->name('salary.payment.invoice');
         Route::post('/store', [SalaryController::class, 'store'])->name('salary.store')->can('tambah gaji karyawan');
         Route::get('/{id}/show', [SalaryController::class, 'show'])->name('salary.show')->can('edit gaji karyawan');
         Route::get('/{month}/{year}/{id}/detail', [SalaryController::class, 'detail'])->name('salary.detail')->can('edit gaji karyawan');
         Route::put('/{id}/update', [SalaryController::class, 'update'])->name('salary.update')->can('edit gaji karyawan');
+        Route::get('/{id}/calculate-transfer', [SalaryController::class, 'calculateTransfer'])->name('salary.calculateTransfer');
+        Route::post('/{id}/process-transfer', [SalaryController::class, 'processTransfer'])->name('salary.processTransfer');
         Route::delete('/{id}/destroy', [SalaryController::class, 'destroy'])->name('salary.destroy')->can('hapus gaji karyawan');
     });
+
 
     Route::prefix('cash-advance')->group(function () {
         Route::get('/', [CashAdvanceController::class, 'index'])->name('cash.advance.index')->can('lihat kasbon');
@@ -84,6 +97,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{id}/show', [CashAdvanceController::class, 'show'])->name('salary.show')->can('edit kasbon');
         Route::put('/{id}/update', [CashAdvanceController::class, 'update'])->name('salary.update')->can('edit kasbon');
         Route::delete('/{id}/destroy', [CashAdvanceController::class, 'destroy'])->name('salary.destroy')->can('hapus kasbon');
+        Route::get('/{id}/invoice', [CashAdvanceController::class, 'invoice'])->name('cash.advance.invoice');
+        Route::post('/{id}/sync-status', [CashAdvanceController::class, 'syncStatus'])->name('cash.advance.syncStatus');
 
         Route::prefix('approval')->group(function () {
             Route::get('/', [CashAdvanceController::class, 'approval'])->name('cash.advance.approval')->can('approve kasbon');

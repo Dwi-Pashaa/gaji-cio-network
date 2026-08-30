@@ -30,22 +30,15 @@
       rel="stylesheet"
     />
     <link href="{{asset('css/demo.min.css?1738096682')}}" rel="stylesheet" />
-    <style>
-      @import url("https://rsms.me/inter/inter.css");
-      .page {
-        display: grid;
-        place-items: center; /* Cara cepat untuk memusatkan elemen */
-        min-height: 100vh;
-      }
-    </style>
+    <link href="{{asset('css/cio-theme.css')}}" rel="stylesheet" />
+    @stack('css')
   </head>
-  <body class="d-flex flex-column">
-    <script src="{{asset('')}}js/demo-theme.min.js?1738096682"></script>
-    <div class="page">
-      <div class="container container-tight py-4">
+  <body class="d-flex flex-column auth-page-bg">
+    <div class="page page-center py-4">
+      <div class="auth-container-wrapper px-3 py-2">
         <div class="text-center mb-4">
           <a href="{{route('login')}}" class="navbar-brand navbar-brand-autodark">
-            <img src="{{asset('img/logo.png')}}" width="200" alt="">
+            <img src="{{asset('img/logo.png')}}" width="210" class="auth-brand-logo" alt="{{ config('app.name') }}">
           </a>
         </div>
         @if (session()->has('error'))
@@ -55,22 +48,21 @@
         @if (session()->has('warning'))
             @include('components.alert.warning')
         @endif
-        <div class="card card-md">
-          <div class="card-body">
+        <div class="card auth-card shadow-lg border-0">
+          <div class="card-body p-4 p-md-5">
             @yield('content')
           </div>
         </div>
 
-        <div class="mt-5">
-          <p class="text-muted text-center">
-            &copy; Copyright {{ config('app.name') }} {{date('Y')}} - All Right Reserved
-          </p>
+        <div class="text-center text-muted small mt-4">
+          &copy; {{date('Y')}} <span class="fw-semibold text-dark">{{ config('app.name') }}</span>. All Rights Reserved.
         </div>
       </div>
     </div>
     <!-- Libs JS -->
     <!-- Tabler Core -->
-    <script src="{{asset('js/tabler.min.js?1738096682')}}" defer></script>
-    <script src="{{asset('js/demo.min.js?1738096682')}}" defer></script>
+    <script src="{{asset('js/tabler.min.js?1738096682')}}"></script>
+    <script src="{{asset('js/demo.min.js?1738096682')}}"></script>
+    @stack('js')
   </body>
 </html>

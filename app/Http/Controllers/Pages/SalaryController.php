@@ -7,9 +7,15 @@ use App\Models\Allowance;
 use App\Models\CashAdvance;
 use App\Models\Salary;
 use App\Models\User;
+use App\Models\Companie;
+use App\Models\SalaryPayment;
 use App\Models\UserAllownce;
+use App\Services\FinanceApiService;
+use App\Services\MekariQontakService;
+use App\Services\XenditDisbursementService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class SalaryController extends Controller
@@ -26,15 +32,49 @@ class SalaryController extends Controller
         $allowance = Allowance::all();
 
         $salary = Salary::with(['user', 'user.allowance'])
-            ->when($search, function ($query, $search) {
-                $query->whereHas('user', function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%");
-                });
-            })
             ->paginate($sort);
 
-        return view("pages.salarie.index", compact("user", "allowance", "salary"));
+        $banks = XenditDisbursementService::getSupportedBanks();
+
+        return view("pages.salarie.index", compact("user", "allowance", "salary", "banks"));
     }
+
+    /**
+     * Riwayat pembayaran gaji karyawan
+     */
+    public function paymentHistory(Request $request)
+    {
+        $query = SalaryPayment::with(['user', 'transferredBy'])
+            ->orderBy('created_at', 'DESC');
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->whereHas('user', fn($q) => $q->where('name', 'like', "%{$search}%"));
+        }
+
+        if ($request->filled('month')) {
+            $query->where('period_month', $request->month);
+        }
+
+        if ($request->filled('year')) {
+            $query->where('period_year', $request->year);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $payments = $query->paginate(25)->withQueryString();
+
+        $totalTransferred = SalaryPayment::where('status', 'transferred')->sum('net_salary');
+        $totalPending     = SalaryPayment::where('status', 'pending')->count();
+        $totalFailed      = SalaryPayment::where('status', 'failed')->count();
+
+        return view('pages.salarie.payment_history', compact(
+            'payments', 'totalTransferred', 'totalPending', 'totalFailed'
+        ));
+    }
+
 
     public function store(Request $request)
     {
@@ -221,5 +261,263 @@ class SalaryController extends Controller
         ];
 
         return view("pages.salarie.detail", compact("data"));
+    }
+
+    /**
+     * Mengambil rincian kalkulasi transfer gaji (Gaji Pokok + Tunjangan - Kasbon)
+     */
+    public function calculateTransfer(string $id)
+    {
+        $salary = Salary::with(['user', 'user.allowance'])->find($id);
+
+        if (!$salary || !$salary->user) {
+            return response()->json([
+                'code'    => 400,
+                'status'  => false,
+                'message' => 'Data gaji karyawan tidak ditemukan.',
+            ]);
+        }
+
+        $user           = $salary->user;
+        $month          = now()->month;
+        $year           = now()->year;
+        $baseSalary     = (float) $salary->base_salary;
+        $allowances     = $user->allowance;
+        $totalAllowance = (float) $allowances->sum('amount');
+
+        // Ambil kasbon aktif / approved / transferred di bulan berjalan
+        $cashAdvances = CashAdvance::where('user_id', $user->id)
+            ->whereIn('status', ['approved', 'transferred'])
+            ->whereMonth('request_date', $month)
+            ->whereYear('request_date', $year)
+            ->get();
+
+        $totalCashAdvance = (float) $cashAdvances->sum('amount');
+        $netSalary        = $baseSalary + $totalAllowance - $totalCashAdvance;
+
+        // Ambil saldo website saat ini dari Finance API
+        $financeApi = app(FinanceApiService::class);
+        $balRes     = $financeApi->getBalance();
+        $balanceVal = (is_array($balRes) && isset($balRes['balance'])) ? (float) $balRes['balance'] : ((is_numeric($balRes)) ? (float) $balRes : null);
+
+        return response()->json([
+            'code'   => 200,
+            'status' => true,
+            'data'   => [
+                'salary_id'           => $salary->id,
+                'user_id'             => $user->id,
+                'user_name'           => $user->name,
+                'user_phone'          => $user->phone,
+                'bank_name'           => $user->bank_name,
+                'account_number'      => $user->account_number,
+                'account_holder_name' => $user->account_holder_name ?? $user->name,
+                'base_salary'         => $baseSalary,
+                'allowances'          => $allowances->map(fn($alw) => [
+                    'name'   => $alw->name,
+                    'amount' => (float) $alw->amount,
+                ]),
+                'total_allowance'     => $totalAllowance,
+                'cash_advances'       => $cashAdvances->map(fn($ca) => [
+                    'id'           => $ca->id,
+                    'title'        => $ca->title,
+                    'amount'       => (float) $ca->amount,
+                    'request_date' => Carbon::parse($ca->request_date)->translatedFormat('d F Y'),
+                    'status'       => $ca->status,
+                ]),
+                'total_cash_advance'  => $totalCashAdvance,
+                'net_salary'          => max(0, $netSalary),
+                'current_balance'     => $balanceVal,
+                'month_name'          => Carbon::now()->translatedFormat('F Y'),
+            ],
+        ]);
+    }
+
+    /**
+     * Memproses transfer gaji ke Xendit & potong saldo website
+     */
+    public function processTransfer(Request $request, string $id)
+    {
+        $salary = Salary::with(['user', 'user.allowance'])->find($id);
+
+        if (!$salary || !$salary->user) {
+            return response()->json([
+                'code'    => 400,
+                'status'  => false,
+                'message' => 'Data gaji karyawan tidak ditemukan.',
+            ]);
+        }
+
+        $user           = $salary->user;
+        $month          = now()->month;
+        $year           = now()->year;
+        $baseSalary     = (float) $salary->base_salary;
+        $totalAllowance = (float) $user->allowance->sum('amount');
+
+        // Hitung kasbon
+        $totalCashAdvance = (float) CashAdvance::where('user_id', $user->id)
+            ->whereIn('status', ['approved', 'transferred'])
+            ->whereMonth('request_date', $month)
+            ->whereYear('request_date', $year)
+            ->sum('amount');
+
+        $netSalary = $baseSalary + $totalAllowance - $totalCashAdvance;
+
+        if ($netSalary <= 0) {
+            return response()->json([
+                'code'    => 400,
+                'status'  => false,
+                'message' => 'Nominal gaji bersih Rp 0 atau minus (terpotong kasbon). Tidak dapat melakukan transfer.',
+            ]);
+        }
+
+        // Data rekening tujuan (diambil langsung dari profil user atau input modal)
+        $bankName          = $user->bank_name ?? $request->bank_name;
+        $accountNumber     = $user->account_number ?? $request->account_number;
+        $accountHolderName = $user->account_holder_name ?? $user->name ?? $request->account_holder_name;
+
+        if (empty($bankName) || empty($accountNumber)) {
+            return response()->json([
+                'code'    => 400,
+                'status'  => false,
+                'message' => 'Rekening bank karyawan belum lengkap. Silakan isi Nama Bank dan Nomor Rekening.',
+            ]);
+        }
+
+        // Update ke profil user jika ada perubahan
+        $user->update([
+            'bank_name'           => $bankName,
+            'account_number'      => $accountNumber,
+            'account_holder_name' => $accountHolderName,
+        ]);
+
+        // ─────────────────────────────────────────────────────────────────
+        // VALIDASI 1: CEK SALDO WEBSITE FINANCE API
+        // ─────────────────────────────────────────────────────────────────
+        $financeApi = app(FinanceApiService::class);
+        if ($financeApi->isConfigured()) {
+            $balRes = $financeApi->getBalance();
+            $currentBalance = (is_array($balRes) && isset($balRes['balance'])) ? (float) $balRes['balance'] : ((is_numeric($balRes)) ? (float) $balRes : null);
+
+            if ($currentBalance !== null && $currentBalance < $netSalary) {
+                return response()->json([
+                    'code'            => 400,
+                    'status'          => false,
+                    'message'         => 'Saldo Website Anda Tidak Cukup',
+                    'current_balance' => $currentBalance,
+                    'required_amount' => $netSalary,
+                ]);
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // LANGKAH 2: KIRIM DISBURSEMENT XENDIT
+        // ─────────────────────────────────────────────────────────────────
+        $xenditService = app(XenditDisbursementService::class);
+        $now           = Carbon::now();
+        $externalId    = 'GAJI-' . $salary->id . '-' . $user->id . '-' . $now->timestamp;
+        $description   = 'Gaji ' . $now->translatedFormat('F Y') . ' - ' . $user->name;
+
+        $disbursementId = null;
+        $xenditStatus   = null;
+
+        if ($xenditService->isConfigured()) {
+            $disbResult = $xenditService->sendDisbursement(
+                externalId:         $externalId,
+                bankCode:           $bankName,
+                accountNumber:      $accountNumber,
+                accountHolderName:  $accountHolderName,
+                amount:             $netSalary,
+                description:        $description
+            );
+
+            if (!$disbResult['success']) {
+                Log::warning('[Salary Transfer] Xendit disbursement failed', [
+                    'salary_id'      => $salary->id,
+                    'user_id'        => $user->id,
+                    'xendit_message' => $disbResult['message'],
+                ]);
+
+                return response()->json([
+                    'code'    => 400,
+                    'status'  => false,
+                    'message' => 'Gagal melakukan transfer gaji via Xendit: ' . $disbResult['message'],
+                ]);
+            }
+
+            $disbursementId = $disbResult['disbursement_id'] ?? null;
+            $xenditStatus   = $disbResult['status'] ?? 'PENDING';
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // LANGKAH 3: SIMPAN RIWAYAT PEMBAYARAN GAJI
+        // ─────────────────────────────────────────────────────────────────
+        $salaryPayment = SalaryPayment::create([
+            'salary_id'              => $salary->id,
+            'user_id'                => $user->id,
+            'transferred_by'         => auth()->id(),
+            'period_month'           => $now->month,
+            'period_year'            => $now->year,
+            'base_salary'            => $baseSalary,
+            'total_allowance'        => $totalAllowance,
+            'total_cash_advance'     => $totalCashAdvance,
+            'net_salary'             => $netSalary,
+            'bank_name'              => $bankName,
+            'account_number'         => $accountNumber,
+            'account_holder_name'    => $accountHolderName,
+            'xendit_external_id'     => $externalId,
+            'xendit_disbursement_id' => $disbursementId,
+            'xendit_status'          => $xenditStatus,
+            'status'                 => $xenditService->isConfigured() ? 'pending' : 'transferred',
+            'transfer_at'            => $xenditService->isConfigured() ? null : $now,
+            'notes'                  => $description,
+        ]);
+
+        Log::info('[Salary Transfer] Payment record saved', [
+            'salary_payment_id' => $salaryPayment->id,
+            'salary_id'         => $salary->id,
+            'user'              => $user->name,
+            'net_salary'        => $netSalary,
+            'xendit_external_id'=> $externalId,
+        ]);
+
+        // ─────────────────────────────────────────────────────────────────
+        // LANGKAH 4: POTONG SALDO WEBSITE FINANCE
+        // ─────────────────────────────────────────────────────────────────
+        if ($financeApi->isConfigured()) {
+            $financeApi->deductBalance(
+                amount:      $netSalary,
+                referenceId: $externalId,
+                description: 'Pembayaran gaji karyawan: ' . $user->name . ' periode ' . $now->translatedFormat('F Y'),
+                category:    'gaji',
+                note:        'Gaji Pokok: Rp ' . number_format($baseSalary) . ', Tunjangan: Rp ' . number_format($totalAllowance) . ', Potongan Kasbon: Rp ' . number_format($totalCashAdvance)
+            );
+        }
+
+        return response()->json([
+            'code'    => 200,
+            'status'  => true,
+            'message' => 'Permintaan transfer gaji Rp ' . number_format($netSalary, 0, ',', '.') . ' berhasil dikirim. Silahkan cek status riwayat transfer secara berkala.',
+        ]);
+    }
+
+    /**
+     * Tampilkan invoice / bukti transfer gaji karyawan
+     */
+    public function invoice(string $id)
+    {
+        $payment = SalaryPayment::with(['user', 'transferredBy', 'salary'])->find($id);
+
+        if (!$payment) {
+            abort(404, 'Data pembayaran transfer gaji tidak ditemukan.');
+        }
+
+        // Karyawan hanya bisa melihat invoice miliknya sendiri, Admin bisa melihat semua
+        if (!auth()->user()->hasRole('Admin') && auth()->id() !== $payment->user_id) {
+            abort(403, 'Anda tidak memiliki hak akses untuk melihat bukti transfer ini.');
+        }
+
+        $companie = Companie::first();
+
+        return view('pages.salarie.invoice', compact('payment', 'companie'));
     }
 }

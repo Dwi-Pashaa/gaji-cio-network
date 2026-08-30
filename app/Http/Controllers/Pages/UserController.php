@@ -35,12 +35,14 @@ class UserController extends Controller
     }
 
     /**
+    /**
      * Show the form for creating a new resource.
      */
     public function create()
     {
-        $role = Role::all();
-        return view("pages.user.create", compact("role"));
+        $role  = Role::all();
+        $banks = \App\Services\XenditDisbursementService::getSupportedBanks();
+        return view("pages.user.create", compact("role", "banks"));
     }
 
     /**
@@ -49,19 +51,22 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            "username" => "required|unique:users,username",
-            "name" => "required|string",
-            "email" => "required|unique:users,email",
-            "role" => "required",
-            "phone" => "required",
-            "password" => "required|string|min:8|confirmed",
-            "password_confirmation" => "required|string"
+            "username"              => "required|unique:users,username",
+            "name"                  => "required|string",
+            "email"                 => "required|unique:users,email",
+            "role"                  => "required",
+            "phone"                 => "required",
+            "password"              => "required|string|min:8|confirmed",
+            "password_confirmation" => "required|string",
+            "bank_name"             => "nullable|string",
+            "account_number"        => "nullable|string",
+            "account_holder_name"   => "nullable|string",
         ]);
 
         $post = $request->except('password_confirmation', 'role');
+        $post['password'] = Hash::make($request->password);
 
         $user = User::create($post);
-        $post['password'] = Hash::make($request->password);
         $user->assignRole($request->role);
 
         return redirect()->route('user.index')->with('success', 'Berhasil menambahkan user baru.');
@@ -72,9 +77,10 @@ class UserController extends Controller
      */
     public function edit(string $id)
     {
-        $user = User::find($id);
-        $role = Role::all();
-        return view("pages.user.edit", compact("user", "role"));
+        $user  = User::find($id);
+        $role  = Role::all();
+        $banks = \App\Services\XenditDisbursementService::getSupportedBanks();
+        return view("pages.user.edit", compact("user", "role", "banks"));
     }
 
     /**
@@ -85,12 +91,15 @@ class UserController extends Controller
         $user = User::find($id);
 
         $request->validate([
-            "username" => "required|unique:users,username," . $user->id,
-            "name" => "required|string",
-            "email" => "required|unique:users,email," . $user->id,
-            "role" => "required",
-            "phone" => "required",
-            "password" => "nullable|string|min:8|confirmed",
+            "username"            => "required|unique:users,username," . $user->id,
+            "name"                => "required|string",
+            "email"               => "required|unique:users,email," . $user->id,
+            "role"                => "required",
+            "phone"               => "required",
+            "password"            => "nullable|string|min:8|confirmed",
+            "bank_name"           => "nullable|string",
+            "account_number"      => "nullable|string",
+            "account_holder_name" => "nullable|string",
         ]);
 
         $updateData = $request->except('password', 'password_confirmation', 'role');

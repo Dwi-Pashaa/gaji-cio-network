@@ -5,7 +5,34 @@
 @endsection
 
 @push('css')
-    
+<style>
+    .emp-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+        background: linear-gradient(135deg, rgba(26, 86, 219, 0.12) 0%, rgba(26, 86, 219, 0.22) 100%);
+        color: #1a56db;
+        border: 1px solid rgba(26, 86, 219, 0.2);
+    }
+    .btn-action-custom {
+        padding: 0.35rem 0.6rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.2s ease;
+    }
+    .btn-action-custom:hover {
+        transform: translateY(-1px);
+    }
+</style>
 @endpush
 
 @section('content')
@@ -36,29 +63,33 @@
     <div class="mt-3">
         <div class="card">
             <div class="card-body border-bottom py-3">
-                <div class="d-flex">
-                    <div class="text-secondary">
-                        <div class="mx-2 d-inline-block">
-                            <select name="sort" id="sort" class="form-control">
-                                @php
-                                    $opts = [
-                                        10,25,50,100
-                                    ];
-                                @endphp 
-                                @foreach ($opts as $opt)
-                                    <option value="{{ $opt }}" {{ request('sort') == $opt ? 'selected' : '' }}>{{ $opt }}</option>
-                                @endforeach
-                            </select>
-                        </div>
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted small">Tampilkan:</span>
+                        <select name="sort" id="sort" class="form-select form-select-sm" style="width: 80px;">
+                            @php
+                                $opts = [10, 25, 50, 100];
+                            @endphp 
+                            @foreach ($opts as $opt)
+                                <option value="{{ $opt }}" {{ request('sort') == $opt ? 'selected' : '' }}>{{ $opt }}</option>
+                            @endforeach
+                        </select>
+                        <span class="text-muted small">entri</span>
                     </div>
-                    <div class="ms-auto text-secondary">
-                        <form>
-                            <div class="input-group mb-2">
-                                <input type="date" class="form-control" name="start">
-                                <input type="date" class="form-control" name="end">
-                                <button class="btn" type="submit">
-                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-search"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" /><path d="M21 21l-6 -6" /></svg>
+                    <div class="ms-auto">
+                        <form method="GET" action="{{ route('cash.advance.approval') }}">
+                            <input type="hidden" name="sort" value="{{ request('sort', 10) }}">
+                            <div class="input-group input-group-sm">
+                                <input type="date" class="form-control" name="start" value="{{ request('start') }}" title="Dari Tanggal">
+                                <span class="input-group-text">s/d</span>
+                                <input type="date" class="form-control" name="end" value="{{ request('end') }}" title="Sampai Tanggal">
+                                <button class="btn btn-primary" type="submit">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" /><path d="M21 21l-6 -6" /></svg>
+                                    Filter
                                 </button>
+                                @if(request('start') || request('end'))
+                                    <a href="{{ route('cash.advance.approval') }}" class="btn btn-outline-secondary">Reset</a>
+                                @endif
                             </div>
                         </form>
                     </div>
@@ -68,91 +99,125 @@
                 <table class="table card-table table-vcenter text-nowrap datatable">
                     <thead>
                         <tr>
-                            <th>No</th>
+                            <th class="w-1 text-center">No</th>
                             <th>Tanggal Pengajuan</th>
-                            <th>Tipe Kasbon</th>
                             <th>Karyawan</th>
                             <th>Keterangan</th>
                             <th>Jumlah Kasbon</th>
+                            <th>Bank / Rekening</th>
                             <th>Status</th>
-                            <th>Tanggal Di Terima</th>
-                            <th>Action</th>
+                            <th>Tanggal Diproses</th>
+                            <th class="text-center">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @php
-                            $no = 1;
-                            $statusColors = [
-                                'approved' => 'primary',
-                                'pending'  => 'warning',
-                                'rejected' => 'danger',
-                            ];
-                        @endphp
+                        @php $no = $cashAdvance->firstItem() ?? 1; @endphp
                         @forelse ($cashAdvance as $item)
+                            @php
+                                $empUser = $item->user;
+                                $empName = $empUser->name ?? 'User Tidak Ditemukan';
+                                $empPhone = $empUser ? ($empUser->phone ?? ($empUser->email ?? '-')) : '-';
+                                $empInitials = strtoupper(substr($empName, 0, 2));
+                            @endphp
                             <tr>
-                                <td>{{ $no++ }}</td>
+                                <td class="text-center text-muted fw-medium">{{ $no++ }}</td>
                                 <td>
-                                    {{ \Carbon\Carbon::parse($item->request_date)->translatedFormat('d F Y') }}
+                                    <div class="fw-medium text-dark">{{ \Carbon\Carbon::parse($item->request_date)->translatedFormat('d F Y') }}</div>
+                                    <small class="text-muted">{{ \Carbon\Carbon::parse($item->request_date)->diffForHumans() }}</small>
                                 </td>
                                 <td>
-                                    {{ optional($item)->type->name }}
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="emp-avatar">
+                                            {{ $empInitials }}
+                                        </span>
+                                        <div>
+                                            <div class="fw-bold text-dark">{{ $empName }}</div>
+                                            <div class="text-muted small">{{ $empPhone }}</div>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td>
-                                    {{ optional($item)->user->name }}
+                                    <div class="fw-semibold text-dark">{{ $item->title }}</div>
                                 </td>
                                 <td>
-                                    {{ $item->title }}
+                                    <span class="fw-bold text-dark">Rp {{ number_format($item->amount, 0, ',', '.') }}</span>
                                 </td>
                                 <td>
-                                    Rp. {{ number_format($item->amount, 2) }}
+                                    @if($item->bank_name)
+                                        <div class="fw-bold text-dark">{{ $item->bank_name }}</div>
+                                        <div class="text-muted small font-monospace">{{ $item->account_number }}</div>
+                                        <div class="text-muted small">a/n {{ $item->account_holder_name }}</div>
+                                        @if($item->xendit_disbursement_id)
+                                            <div class="text-success mt-1" style="font-size: 0.72rem;">ID: {{ $item->xendit_disbursement_id }}</div>
+                                        @endif
+                                    @else
+                                        <span class="text-muted small">—</span>
+                                    @endif
                                 </td>
                                 <td>
-                                    <span class="badge bg-{{ $statusColors[$item->status] ?? 'secondary' }} text-white">
-                                        {{ ucfirst($item->status) }}
+                                    <span class="badge bg-{{ $item->statusBadgeColor() }} text-white">
+                                        {{ $item->statusLabel() }}
                                     </span>
                                 </td>
                                 <td>
-                                    @if ($item->status === "approved" || $item->status === "rejected")
-                                        {{ \Carbon\Carbon::parse($item->approved_date)->translatedFormat('d F Y') }}
+                                    @if($item->transfer_at)
+                                        <div class="fw-medium text-dark">{{ \Carbon\Carbon::parse($item->transfer_at)->translatedFormat('d F Y H:i') }}</div>
+                                    @elseif($item->approved_date && $item->status !== 'pending')
+                                        <div class="fw-medium text-dark">{{ \Carbon\Carbon::parse($item->approved_date)->translatedFormat('d F Y') }}</div>
                                     @else
-                                        <i>Belum Di Validasi</i>
+                                        <i class="text-muted small">Belum diproses</i>
                                     @endif
                                 </td>
                                 <td>
-                                    @if ($item->status === "pending")
-                                        @can('approve kasbon')
-                                            <a href="javascript:void(0)" onclick="return approve('{{ $item->id }}')" class="btn btn-outline-primary btn-md">
-                                                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-copy-check"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path stroke="none" d="M0 0h24v24H0z" /><path d="M7 9.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2 2 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /><path d="M11 14l2 2l4 -4" /></svg>
-                                                Terima
+                                    <div class="btn-list flex-nowrap justify-content-center">
+                                        @if(in_array($item->status, ['pending', 'failed']))
+                                            @can('approve kasbon')
+                                                <a href="javascript:void(0)" onclick="return approve('{{ $item->id }}')"
+                                                   class="btn btn-action-custom btn-success shadow-sm"
+                                                   title="{{ $item->status === 'failed' ? 'Coba Transfer Ulang' : 'Approve & Transfer' }}">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>
+                                                    {{ $item->status === 'failed' ? 'Coba Lagi' : 'Approve' }}
+                                                </a>
+                                            @endcan
+                                            @can('tolak kasbon')
+                                                <a href="javascript:void(0)" onclick="return rejected('{{ $item->id }}')"
+                                                   class="btn btn-action-custom btn-outline-danger"
+                                                   title="Tolak Pengajuan Kasbon">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
+                                                    Tolak
+                                                </a>
+                                            @endcan
+                                        @elseif(in_array($item->status, ['approved', 'transferred']))
+                                            <a href="{{ route('cash.advance.invoice', $item->id) }}" target="_blank" class="btn btn-action-custom btn-outline-primary" title="Lihat Bukti Transfer">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M9 17h6" /><path d="M9 13h6" /></svg>
+                                                Bukti Transfer
                                             </a>
-                                        @endcan
-                                        @can('tolak kasbon')
-                                            <a href="javascript:void(0)" onclick="return rejected('{{ $item->id }}')" class="btn btn-outline-danger btn-md">
-                                                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-calendar-x"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M13 21h-7a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v6.5" /><path d="M16 3v4" /><path d="M8 3v4" /><path d="M4 11h16" /><path d="M22 22l-5 -5" /><path d="M17 22l5 -5" /></svg>
-                                                Tolak
-                                            </a>
-                                        @endcan
-                                    @else
-                                        -
-                                    @endif
+                                        @else
+                                            <span class="text-muted small">—</span>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center">Tidak Ada Data</td>
+                                <td colspan="9" class="text-center py-5">
+                                    <div class="text-muted">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-2 text-muted"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" /><path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" /></svg>
+                                        <div class="fw-semibold">Tidak Ada Pengajuan Kasbon</div>
+                                        <div class="small">Saat ini belum ada data pengajuan kasbon yang tersedia.</div>
+                                    </div>
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-            <div class="card-footer d-flex align-items-center">
-                <p class="m-0 text-secondary">
-                    Showing <span>{{ $cashAdvance->firstItem() }}</span> 
-                    to <span>{{ $cashAdvance->lastItem() }}</span> of
-                    <span>{{ $cashAdvance->total() }}</span> entries
+            <div class="card-footer d-flex align-items-center justify-content-between py-2">
+                <p class="m-0 text-muted small">
+                    Menampilkan <strong>{{ $cashAdvance->firstItem() ?? 0 }}</strong> sampai <strong>{{ $cashAdvance->lastItem() ?? 0 }}</strong> dari total <strong>{{ $cashAdvance->total() }}</strong> entri
                 </p>
                 <ul class="pagination m-0 ms-auto">
-                    {{ $cashAdvance->links() }}
+                    {{ $cashAdvance->withQueryString()->links('pagination::bootstrap-5') }}
                 </ul>
             </div>
         </div>
@@ -237,11 +302,18 @@
                             }, 2000);
                         }
                     },
-                    error: function() {
+                    error: function(xhr) {
+                        let msg = "Terjadi kesalahan";
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            msg = xhr.responseJSON.message;
+                        }
                         Toast.fire({
                             icon: "error",
-                            title: "Server Error"
+                            title: msg
                         });
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2500);
                     }
                 });
             }

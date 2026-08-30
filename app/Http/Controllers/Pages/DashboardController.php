@@ -8,6 +8,7 @@ use App\Models\Attendance;
 use App\Models\CashAdvance;
 use App\Models\CashAdvanceType;
 use App\Models\Salary;
+use App\Models\SalaryPayment;
 use App\Models\UserAllownce;
 use App\Models\UserWorkDay;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -46,8 +47,63 @@ class DashboardController extends Controller
 
     private function isAdmin()
     {
-        $type = CashAdvanceType::all();
-        return view("pages.dashboard.index", compact("type"));
+        $financeApi = app(\App\Services\FinanceApiService::class);
+        $financeBalance = $financeApi->getBalance();
+
+        // Statistik Karyawan
+        $totalEmployees = \App\Models\User::role('Karyawan')->count();
+        if ($totalEmployees === 0) {
+            $totalEmployees = \App\Models\User::whereDoesntHave('roles', function ($q) {
+                $q->where('name', 'Admin');
+            })->count();
+        }
+
+        // Statistik Kasbon
+        $kasbonApprovedCount  = CashAdvance::where('status', 'approved')->orWhere('status', 'transferred')->count();
+        $kasbonApprovedAmount = CashAdvance::whereIn('status', ['approved', 'transferred'])->sum('amount');
+        $kasbonRejectedCount  = CashAdvance::where('status', 'rejected')->count();
+        $kasbonRejectedAmount = CashAdvance::where('status', 'rejected')->sum('amount');
+        $kasbonPendingCount   = CashAdvance::where('status', 'pending')->count();
+
+        // Statistik Pembayaran Gaji Bulan Berjalan
+        $currentMonth = now()->month;
+        $currentYear  = now()->year;
+        $totalSalaryPaidMonth = \App\Models\SalaryPayment::where('status', 'transferred')
+            ->where('period_month', $currentMonth)
+            ->where('period_year', $currentYear)
+            ->sum('net_salary');
+
+        $salaryPaidCount = \App\Models\SalaryPayment::where('status', 'transferred')
+            ->where('period_month', $currentMonth)
+            ->where('period_year', $currentYear)
+            ->count();
+
+        // Transaksi Pembayaran Gaji Terbaru (5 transaksi terakhir)
+        $recentSalaryPayments = \App\Models\SalaryPayment::with('user')
+            ->orderBy('created_at', 'DESC')
+            ->limit(5)
+            ->get();
+
+        // Kasbon Terbaru yang Perlu Tindakan / Baru (5 transaksi)
+        $recentCashAdvances = CashAdvance::with('user')
+            ->orderBy('created_at', 'DESC')
+            ->limit(5)
+            ->get();
+
+        return view("pages.dashboard.index", compact(
+            "financeBalance",
+            "financeApi",
+            "totalEmployees",
+            "kasbonApprovedCount",
+            "kasbonApprovedAmount",
+            "kasbonRejectedCount",
+            "kasbonRejectedAmount",
+            "kasbonPendingCount",
+            "totalSalaryPaidMonth",
+            "salaryPaidCount",
+            "recentSalaryPayments",
+            "recentCashAdvances"
+        ));
     }
 
     private function isOnAbsen($user)
@@ -68,16 +124,22 @@ class DashboardController extends Controller
             $year  = now()->year;
 
             $cashAdvance = CashAdvance::where('user_id', $user->id)
-                ->where('status', 'approved')
+                ->whereIn('status', ['approved', 'transferred'])
                 ->whereMonth('request_date', $month)
                 ->whereYear('request_date', $year)
                 ->sum('amount');
 
             $cashAdvancePerMonth = CashAdvance::where('user_id', $user->id)
-                ->where('status', 'approved')
+                ->whereIn('status', ['approved', 'transferred'])
                 ->selectRaw('DATE_FORMAT(request_date,"%Y-%m") as ym, SUM(amount) as total_cash_advance')
                 ->groupBy('ym')
                 ->pluck('total_cash_advance', 'ym');
+
+            $salaryPayments = SalaryPayment::where('user_id', $user->id)
+                ->get()
+                ->keyBy(function ($item) {
+                    return sprintf('%04d-%02d', $item->period_year, $item->period_month);
+                });
 
             $firstSalary = Salary::where('user_id', $user->id)
                 ->orderBy('effective_date', 'asc')
@@ -99,6 +161,7 @@ class DashboardController extends Controller
                 $tahun = $start->year;
 
                 $cashAdvanceMonth = $cashAdvancePerMonth[$key] ?? 0;
+                $payment = $salaryPayments[$key] ?? null;
 
                 $alpha = 0;
                 $cuti  = 0;
@@ -165,6 +228,9 @@ class DashboardController extends Controller
                     'telat'              => $telat,
                     'attendance_penalty' => $attendancePenalty,
                     'net_salary'         => $netSalaryMonth,
+                    'payment'            => $payment,
+                    'payment_status'     => $payment ? $payment->status : null,
+                    'payment_id'         => $payment ? $payment->id : null,
                 ]);
 
                 $start->addMonth();
@@ -180,15 +246,21 @@ class DashboardController extends Controller
                 - $cashAdvance
                 - $currentAttendancePenalty;
 
+            $currentMonthKey = now()->format('Y-m');
+            $currentPayment  = $salaryPayments[$currentMonthKey] ?? null;
+
+            $isAbsenOn = true;
             return view(
                 "pages.dashboard.index",
                 compact(
+                    "isAbsenOn",
                     "salaryHistory",
                     "baseSalary",
                     "totalAllowance",
                     "cashAdvance",
                     "netSalary",
-                    "currentAttendancePenalty"
+                    "currentAttendancePenalty",
+                    "currentPayment"
                 )
             );
         }
@@ -203,16 +275,23 @@ class DashboardController extends Controller
             $month = now()->month;
             $year = now()->year;
 
-            $cashAdvance = CashAdvance::where('user_id', $user->id)->where('status', 'approved')
+            $cashAdvance = CashAdvance::where('user_id', $user->id)
+                ->whereIn('status', ['approved', 'transferred'])
                 ->whereMonth('request_date', $month)
                 ->whereYear('request_date', $year)
                 ->sum('amount');
 
             $cashAdvancePerMonth = CashAdvance::where('user_id', $user->id)
-                ->where('status', 'approved')
+                ->whereIn('status', ['approved', 'transferred'])
                 ->selectRaw('DATE_FORMAT(request_date, "%Y-%m") as ym, SUM(amount) as total_cash_advance')
                 ->groupBy('ym')
                 ->pluck('total_cash_advance', 'ym');
+
+            $salaryPayments = SalaryPayment::where('user_id', $user->id)
+                ->get()
+                ->keyBy(function ($item) {
+                    return sprintf('%04d-%02d', $item->period_year, $item->period_month);
+                });
 
             $firstSalary = Salary::where('user_id', $user->id)
                 ->orderBy('effective_date', 'asc')
@@ -231,14 +310,18 @@ class DashboardController extends Controller
             while ($start <= $end) {
                 $key = $start->format('Y-m');
                 $cashAdvance = $cashAdvancePerMonth[$key] ?? 0;
+                $payment     = $salaryPayments[$key] ?? null;
 
                 $months->push([
-                    'year'        => $start->format('Y'),
-                    'month'       => $start->format('m'),
-                    'base_salary' => $baseSalary,
-                    'allowance'   => $totalAllowance,
-                    'cash_advance' => $cashAdvance,
-                    'net_salary'  => $baseSalary + $totalAllowance - $cashAdvance,
+                    'year'           => $start->format('Y'),
+                    'month'          => $start->format('m'),
+                    'base_salary'    => $baseSalary,
+                    'allowance'      => $totalAllowance,
+                    'cash_advance'   => $cashAdvance,
+                    'net_salary'     => $baseSalary + $totalAllowance - $cashAdvance,
+                    'payment'        => $payment,
+                    'payment_status' => $payment ? $payment->status : null,
+                    'payment_id'     => $payment ? $payment->id : null,
                 ]);
 
                 $start->addMonth();
@@ -247,7 +330,11 @@ class DashboardController extends Controller
             $salaryHistory = $months;
 
             $netSalary = $baseSalary + $totalAllowance - $cashAdvance;
-            return view("pages.dashboard.index", compact("salaryHistory", "baseSalary", "totalAllowance", "cashAdvance", "netSalary"));
+            $currentMonthKey = now()->format('Y-m');
+            $currentPayment  = $salaryPayments[$currentMonthKey] ?? null;
+
+            $isAbsenOn = false;
+            return view("pages.dashboard.index", compact("isAbsenOn", "salaryHistory", "baseSalary", "totalAllowance", "cashAdvance", "netSalary", "currentPayment"));
         }
     }
 
@@ -395,7 +482,7 @@ class DashboardController extends Controller
         // KASBON
         // =========================
         $cashAdvance = CashAdvance::where('user_id', $user->id)
-            ->where('status', 'approved')
+            ->whereIn('status', ['approved', 'transferred'])
             ->whereMonth('request_date', $month)
             ->whereYear('request_date', $year)
             ->get();
@@ -448,7 +535,7 @@ class DashboardController extends Controller
         $totalAllowance = $allowances->sum('amount');
 
         $cashAdvance = CashAdvance::where('user_id', $user->id)
-            ->where('status', 'approved')
+            ->whereIn('status', ['approved', 'transferred'])
             ->whereMonth('request_date', $month)
             ->whereYear('request_date', $year)
             ->get();

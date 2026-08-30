@@ -17,3 +17,8 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+// Xendit Webhook Callbacks (Public)
+Route::post('/xendit/disbursement-callback', [\App\Http\Controllers\Api\XenditCallbackController::class, 'handleDisbursement'])
+    ->name('api.xendit.disbursement.callback');
+

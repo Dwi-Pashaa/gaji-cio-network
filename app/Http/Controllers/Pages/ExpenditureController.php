@@ -37,7 +37,7 @@ class ExpenditureController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, \App\Services\FinanceApiService $financeApi)
     {
         $validation = Validator::make($request->all(), [
             "title" => "required",
@@ -53,13 +53,33 @@ class ExpenditureController extends Controller
             ]);
         }
 
-        $post = $request->all();
+        $amount = (float) preg_replace('/[^0-9]/', '', $request->amount);
 
-        $amount = preg_replace('/[^0-9]/', '', $request->amount);
+        // Cek saldo website dari API Finance jika sudah terkonfigurasi
+        if ($financeApi->isConfigured()) {
+            $balanceResult = $financeApi->getBalance();
+            if (!$balanceResult['success']) {
+                return response()->json([
+                    'code' => 400,
+                    'status' => 'error',
+                    'message' => 'Gagal memeriksa saldo website: ' . $balanceResult['message'],
+                ]);
+            }
+
+            if ($balanceResult['balance'] < $amount) {
+                return response()->json([
+                    'code' => 400,
+                    'status' => 'error',
+                    'message' => 'Saldo website tidak mencukupi untuk pengeluaran ini. Saldo saat ini: Rp ' . number_format($balanceResult['balance'], 0, ',', '.') . ', dibutuhkan: Rp ' . number_format($amount, 0, ',', '.') . '.',
+                ]);
+            }
+        }
+
+        $post = $request->all();
         $post['amount'] = $amount;
         $post['date'] = Carbon::now();
 
-        Expenditure::create($post);
+        $expenditure = Expenditure::create($post);
 
         $type = CashAdvanceType::find($request->type_id);
         if ($type) {
@@ -67,20 +87,30 @@ class ExpenditureController extends Controller
             $type->save();
         }
 
+        // Potong saldo website langsung via Finance API
+        if ($financeApi->isConfigured()) {
+            $financeApi->deductBalance(
+                amount:       $amount,
+                referenceId:  'EXP-' . $expenditure->id,
+                description:  'Pengeluaran: ' . $request->title,
+                category:     'pengeluaran',
+                note:         $request->note ?? 'Pengeluaran kantor'
+            );
+        }
+
         $defaultPhone = "6285324780031";
         $message = "Konfirmasi Pengeluaran\n\n"
             . "Judul Pengeluaran: {$request->title}\n"
-            . "Tipe Pengeluaran: {$type->name}\n"
+            . "Tipe Pengeluaran: " . ($type->name ?? '-') . "\n"
             . "Jumlah: Rp" . number_format($amount, 0, ',', '.') . "\n"
             . "Tanggal Pengeluaran: " . Carbon::now()->translatedFormat('l, d F Y - H:i');
-
 
         $encodedMsg = rawurlencode($message);
 
         return response()->json([
             'code' => 200,
             'status' => 'success',
-            'message' => 'Berhasil menyimpan data.',
+            'message' => 'Berhasil menyimpan data pengeluaran.',
             'wa_link' => "https://wa.me/{$defaultPhone}?text={$encodedMsg}"
         ]);
     }

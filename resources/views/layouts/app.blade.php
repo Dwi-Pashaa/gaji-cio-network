@@ -16,6 +16,7 @@
 	<link href="{{asset('')}}css/tabler-vendors.min.css?1738096685" rel="stylesheet" />
 	<link href="{{asset('')}}css/tabler-marketing.min.css?1738096685" rel="stylesheet" />
 	<link href="{{asset('')}}css/demo.min.css?1738096685" rel="stylesheet" />
+	<link href="{{asset('')}}css/cio-theme.css" rel="stylesheet" />
 	<style>
 		@import url('https://rsms.me/inter/inter.css');
 	</style>

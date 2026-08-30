@@ -5,127 +5,245 @@
 @endsection
 
 @push('css')
-    
+<style>
+    .salary-table th {
+        font-size: 0.75rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.05em !important;
+        font-weight: 700 !important;
+        color: #475569 !important;
+        background-color: #f8fafc !important;
+        padding: 0.9rem 1rem !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+    }
+    .salary-table td {
+        padding: 0.95rem 1rem !important;
+        vertical-align: middle !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+    }
+    .salary-table tbody tr:hover {
+        background-color: #f8fafc !important;
+    }
+    .emp-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+        background: linear-gradient(135deg, rgba(26, 86, 219, 0.12) 0%, rgba(26, 86, 219, 0.22) 100%);
+        color: #1a56db;
+        border: 1px solid rgba(26, 86, 219, 0.2);
+    }
+    .badge-allowance {
+        background: #f1f5f9;
+        color: #334155;
+        border: 1px solid #e2e8f0;
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 4px 8px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin: 2px;
+    }
+    .badge-allowance-val {
+        color: #16a34a;
+        font-weight: 600;
+    }
+    .total-salary-box {
+        display: inline-block;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #065f46;
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.925rem;
+    }
+    .btn-action-custom {
+        padding: 0.4rem 0.65rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.2s ease;
+    }
+    .btn-action-custom:hover {
+        transform: translateY(-1px);
+    }
+</style>
 @endpush
 
 @section('content')
-    <div class="card">
+    <div class="card shadow-sm border-0">
         @can('tambah gaji karyawan')
-            <div class="card-header">
-                <a href="javascript:void(0)" id="addBtn" data-bs-toggle="modal" data-bs-target="#modal-simple" class="btn btn-primary">
-                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-plus"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
-                    Buat Gaji
-                </a>
+            <div class="card-header bg-white d-flex align-items-center justify-content-between py-3">
+                <div>
+                    <h3 class="card-title fw-bold text-dark mb-0">Kelola Gaji Karyawan</h3>
+                    <p class="text-muted small mb-0">Daftar konfigurasi gaji pokok, tunjangan, dan transfer gaji langsung</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ route('salary.payment.index') }}" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" /><path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" /><path d="M9 12h6" /><path d="M9 16h6" /></svg>
+                        Riwayat Pembayaran
+                    </a>
+                    <a href="javascript:void(0)" id="addBtn" data-bs-toggle="modal" data-bs-target="#modal-simple" class="btn btn-primary d-flex align-items-center gap-2 shadow-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
+                        Buat Gaji Pegawai
+                    </a>
+                </div>
             </div>
         @endcan
-        <div class="card-body">
-            <div class="d-flex">
-                <div class="text-secondary">
-                    <div class="mx-2 d-inline-block">
-                        <select name="sort" id="sort" class="form-control">
-                            @php
-                                $opts = [
-                                    10,25,50,100
-                                ];
-                            @endphp 
-                            @foreach ($opts as $opt)
-                                <option value="{{ $opt }}" {{ request('sort') == $opt ? 'selected' : '' }}>{{ $opt }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+
+        <div class="card-body border-bottom py-3 bg-light-lt">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted small">Tampilkan:</span>
+                    <select name="sort" id="sort" class="form-select form-select-sm" style="width: 80px;">
+                        @php
+                            $opts = [10, 25, 50, 100];
+                        @endphp 
+                        @foreach ($opts as $opt)
+                            <option value="{{ $opt }}" {{ request('sort') == $opt ? 'selected' : '' }}>{{ $opt }}</option>
+                        @endforeach
+                    </select>
+                    <span class="text-muted small">entri</span>
                 </div>
-                <div class="ms-auto text-secondary">
-                    <form>
-                        <div class="input-group mb-2">
-                            <input type="text" class="form-control" name="search" placeholder="Search for…">
-                            <button class="btn" type="submit">
-                                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-search"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" /><path d="M21 21l-6 -6" /></svg>
-                            </button>
+                <div class="ms-auto" style="min-width: 260px;">
+                    <form method="GET" action="{{ route('salary.index') }}">
+                        <div class="input-icon">
+                            <span class="input-icon-addon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            </span>
+                            <input type="text" class="form-control form-control-sm" name="search" value="{{ request('search') }}" placeholder="Cari nama karyawan...">
                         </div>
                     </form>
                 </div>
             </div>
         </div>
+
         <div class="table-responsive">
-            <table class="table card-table table-vcenter text-nowrap datatable">
+            <table class="table card-table table-vcenter salary-table text-nowrap">
                 <thead>
                     <tr>
-                        <th>No</th>
-                        <th>Nama Karyawan</th>
+                        <th class="w-1 text-center">No</th>
+                        <th>Karyawan</th>
                         <th>Gaji Pokok</th>
                         <th>Tunjangan</th>
-                        <th>Total</th>
-                        <th>Action</th>
+                        <th>Total Gaji Tetap</th>
+                        <th class="text-center">Aksi & Transfer</th>
                     </tr>
                 </thead>
                 <tbody>
                     @php
-                        $no = 1;
+                        $no = $salary->firstItem() ?? 1;
                         $grandTotal = 0;
                     @endphp
                     @forelse ($salary as $item)
                         @php
-                            $totalAllw = $item->user->allowance->sum('amount');
-                            $totalGaji = $item->base_salary + $totalAllw;
+                            $empUser = $item->user;
+                            $userName = $empUser ? $empUser->name : 'User Tidak Ditemukan';
+                            $userPhone = $empUser ? ($empUser->phone ?? ($empUser->email ?? '-')) : '-';
+                            $initials = strtoupper(substr($userName, 0, 2));
+                            $totalAllw = ($empUser && isset($empUser->allowance)) ? $empUser->allowance->sum('amount') : 0;
+                            $totalGaji = ($item->base_salary ?? 0) + $totalAllw;
                             $grandTotal += $totalGaji;
                         @endphp
                         <tr>
-                            <td>{{ $no++ }}</td>
-                            <td>{{ optional($item->user)->name }}</td>
-                            <td>{{ number_format($item->base_salary, 2) }}</td>
+                            <td class="text-center text-muted fw-medium">{{ $no++ }}</td>
                             <td>
-                                @forelse ($item->user->allowance as $alw)
-                                    <span class="badge bg-primary text-white">
-                                        {{ $alw->name }} - {{ number_format($alw->amount, 2) }}
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="emp-avatar">
+                                        {{ $initials }}
                                     </span>
-                                @empty
-                                    <span class="badge bg-secondary text-white">
-                                        Tidak Memiliki Tunjangan
-                                    </span>
-                                @endforelse
+                                    <div>
+                                        <div class="fw-bold text-dark">{{ $userName }}</div>
+                                        <div class="text-muted small">{{ $userPhone }}</div>
+                                    </div>
+                                </div>
                             </td>
                             <td>
-                                Rp. {{ number_format($totalGaji, 2) }}
+                                <div class="fw-semibold text-dark">
+                                    Rp {{ number_format($item->base_salary ?? 0, 0, ',', '.') }}
+                                </div>
+                                <div class="text-muted small">
+                                    Status: <span class="badge {{ ($item->status ?? '') == 'active' ? 'bg-success-lt text-success' : 'bg-secondary-lt text-secondary' }}">{{ ucfirst($item->status ?? '-') }}</span>
+                                </div>
                             </td>
                             <td>
-                                @can('edit gaji karyawan')
-                                    <a href="javascript:void(0)" onclick="return editModal('{{ $item->id }}')" class="btn btn-outline-warning btn-md">
-                                        <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-edit"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" /><path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" /><path d="M16 5l3 3" /></svg>
-                                        Edit
+                                @if($empUser && isset($empUser->allowance) && $empUser->allowance->count() > 0)
+                                    <div class="d-flex flex-wrap gap-1" style="max-width: 320px;">
+                                        @foreach ($empUser->allowance as $alw)
+                                            <span class="badge-allowance">
+                                                <span>{{ $alw->name }}:</span>
+                                                <span class="badge-allowance-val">+Rp {{ number_format($alw->amount, 0, ',', '.') }}</span>
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <span class="text-muted small fst-italic">Tidak memiliki tunjangan</span>
+                                @endif
+                            </td>
+                            <td>
+                                <div class="total-salary-box">
+                                    Rp {{ number_format($totalGaji, 0, ',', '.') }}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="btn-list flex-nowrap justify-content-center">
+                                    <a href="javascript:void(0)" onclick="return openTransferModal('{{ $item->id }}')" class="btn btn-action-custom btn-success shadow-sm" title="Kalkulasi & Transfer Gaji via Xendit">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M3 6m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" /><path d="M18 12l.01 0" /><path d="M6 12l.01 0" /></svg>
+                                        Transfer Gaji
                                     </a>
-                                @endcan
-                                @can('hapus gaji karyawan')
-                                    <a href="javascript:void(0)" onclick="return deleteItem('{{ $item->id }}')" class="btn btn-outline-danger btn-md">
-                                        <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-trash"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
-                                        Hapus
-                                    </a>
-                                @endcan
+                                    @can('edit gaji karyawan')
+                                        <a href="javascript:void(0)" onclick="return editModal('{{ $item->id }}')" class="btn btn-action-custom btn-outline-warning" title="Edit Gaji & Tunjangan">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" /><path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" /><path d="M16 5l3 3" /></svg>
+                                            Edit
+                                        </a>
+                                    @endcan
+                                    @can('hapus gaji karyawan')
+                                        <a href="javascript:void(0)" onclick="return deleteItem('{{ $item->id }}')" class="btn btn-action-custom btn-outline-danger" title="Hapus Data Gaji">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
+                                            Hapus
+                                        </a>
+                                    @endcan
+                                </div>
                             </td> 
                         </tr>
                     @empty
                         <tr>
-                            <td class="text-center" colspan="6">
-                                Tidak Ada Data
+                            <td class="text-center py-5" colspan="6">
+                                <div class="text-muted">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-2 text-muted"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" /><path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" /></svg>
+                                    <div class="fw-semibold">Belum Ada Data Gaji Karyawan</div>
+                                    <div class="small">Klik tombol "Buat Gaji" di atas untuk menambahkan data baru.</div>
+                                </div>
                             </td>
                         </tr>
                     @endforelse
                 </tbody>
                 <tfoot>
-                    <tr>
-                        <th colspan="4" class="text-center">Total</th>
-                        <th colspan="3">Rp. {{ number_format($grandTotal, 2) }}</th>
+                    <tr class="bg-light-lt fw-bold">
+                        <td colspan="4" class="text-end text-uppercase small text-muted">Total Keseluruhan (Halaman Ini):</td>
+                        <td colspan="2" class="text-success fs-4">
+                            Rp {{ number_format($grandTotal, 0, ',', '.') }}
+                        </td>
                     </tr>
                 </tfoot>
             </table>
         </div>
-        <div class="card-footer d-flex align-items-center">
-            <p class="m-0 text-secondary">
-                Showing <span>{{ $salary->firstItem() }}</span> 
-                to <span>{{ $salary->lastItem() }}</span> of
-                <span>{{ $salary->total() }}</span> entries
+        <div class="card-footer d-flex align-items-center justify-content-between py-2">
+            <p class="m-0 text-muted small">
+                Menampilkan <strong>{{ $salary->firstItem() ?? 0 }}</strong> sampai <strong>{{ $salary->lastItem() ?? 0 }}</strong> dari total <strong>{{ $salary->total() }}</strong> entri
             </p>
             <ul class="pagination m-0 ms-auto">
-                {{ $salary->links() }}
+                {{ $salary->withQueryString()->links('pagination::bootstrap-5') }}
             </ul>
         </div>
     </div>
@@ -209,6 +327,140 @@
                     <div class="modal-footer">
                         <button type="button" class="btn me-auto" data-bs-dismiss="modal">Batal</button>
                         <button type="submit" class="btn btn-primary">Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Kalkulasi & Transfer Gaji via Xendit -->
+    <div class="modal modal-blur fade" id="modal-transfer-gaji" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title d-flex align-items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M3 6m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" /><path d="M18 12l.01 0" /><path d="M6 12l.01 0" /></svg>
+                        Konfirmasi & Rincian Transfer Gaji Karyawan
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div id="transfer-loading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <div class="text-muted mt-2">Menghitung gaji, tunjangan, & potongan kasbon...</div>
+                </div>
+
+                <form id="form-transfer-gaji" style="display:none;">
+                    <input type="hidden" id="tf_salary_id">
+                    <div class="modal-body p-4">
+                        <!-- Employee & Saldo Card -->
+                        <div class="card bg-light border-0 mb-3">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                    <div>
+                                        <div class="text-muted small text-uppercase fw-semibold">Penerima Gaji</div>
+                                        <div class="h3 mb-0 text-primary fw-bold" id="tf_user_name">-</div>
+                                        <div class="small text-muted" id="tf_period_name">Periode: -</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="text-muted small text-uppercase fw-semibold">Saldo Web Slip Saat Ini</div>
+                                        <div class="h4 mb-0 fw-bold text-success" id="tf_current_balance">Rp 0</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Rincian Kalkulasi: Penambahan (+) & Pengurangan (-) -->
+                        <div class="row g-3">
+                            <!-- Kolom Kiri: Gaji Pokok & Tunjangan -->
+                            <div class="col-md-6">
+                                <div class="card h-100 border-success-subtle border">
+                                    <div class="card-header bg-success-lt py-2">
+                                        <strong class="text-success small text-uppercase">
+                                            (+) Penghasilan & Tunjangan
+                                        </strong>
+                                    </div>
+                                    <div class="card-body p-3">
+                                        <div class="d-flex justify-content-between py-1 border-bottom">
+                                            <span class="text-muted">Gaji Pokok:</span>
+                                            <strong id="tf_base_salary">Rp 0</strong>
+                                        </div>
+                                        <div id="tf_allowance_list" class="mt-2">
+                                            <!-- List tunjangan injected by JS -->
+                                        </div>
+                                        <div class="d-flex justify-content-between pt-2 mt-2 border-top fw-bold text-success">
+                                            <span>Subtotal Pendapatan:</span>
+                                            <span id="tf_subtotal_income">Rp 0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Kolom Kanan: Potongan Kasbon -->
+                            <div class="col-md-6">
+                                <div class="card h-100 border-danger-subtle border">
+                                    <div class="card-header bg-danger-lt py-2">
+                                        <strong class="text-danger small text-uppercase">
+                                            (-) Potongan Kasbon Bulan Ini
+                                        </strong>
+                                    </div>
+                                    <div class="card-body p-3">
+                                        <div id="tf_cash_advance_list">
+                                            <!-- List kasbon injected by JS -->
+                                        </div>
+                                        <div class="d-flex justify-content-between pt-2 mt-2 border-top fw-bold text-danger">
+                                            <span>Total Potongan Kasbon:</span>
+                                            <span id="tf_total_cash_advance">-Rp 0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Total Bersih Banner -->
+                        <div style="background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%); border-radius: 12px; padding: 1.25rem 1.5rem; color: #ffffff; box-shadow: 0 4px 15px rgba(29, 78, 216, 0.25);" class="mt-3">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div>
+                                    <div style="color: rgba(255,255,255,0.75); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Nominal Gaji Bersih Siap Ditransfer</div>
+                                    <div style="color: #ffffff; font-size: 0.85rem; margin-top: 2px;">(Gaji Pokok + Tunjangan - Kasbon)</div>
+                                </div>
+                                <div class="text-end">
+                                    <div style="color: #ffffff; font-size: 1.85rem; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.2);" id="tf_net_salary">Rp 0</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Informasi Rekening Penerima -->
+                        <div class="mt-3">
+                            <label class="form-label fw-bold text-dark mb-2">Informasi Rekening Bank Tujuan Transfer (Xendit)</label>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted">Bank</label>
+                                    <select name="bank_name" id="tf_bank_name" class="form-select">
+                                        <option value="">-- Pilih Bank --</option>
+                                        @foreach($banks as $bCode => $bLabel)
+                                            <option value="{{ $bCode }}">{{ $bLabel }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted">No. Rekening</label>
+                                    <input type="text" name="account_number" id="tf_account_number" class="form-control" placeholder="Nomor rekening">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small text-muted">Atas Nama Rekening</label>
+                                    <input type="text" name="account_holder_name" id="tf_account_holder_name" class="form-control" placeholder="Nama pemilik rekening">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+                        <button type="button" id="btn-submit-transfer" onclick="submitTransferGaji()" class="btn btn-success d-flex align-items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M3 6m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" /></svg>
+                            Kirim Transfer Gaji Sekarang
+                        </button>
                     </div>
                 </form>
             </div>
@@ -448,7 +700,224 @@
                                 title: "Server Error"
                             });
                         }
-                    })
+                    });
+                }
+            });
+        }
+
+        function formatRupiah(num) {
+            if (num === null || num === undefined || isNaN(num)) {
+                return 'Rp 0';
+            }
+            return 'Rp ' + Number(num).toLocaleString('id-ID');
+        }
+
+        // Buka modal kalkulasi transfer gaji
+        function openTransferModal(salaryId) {
+            $("#tf_salary_id").val(salaryId);
+            $("#transfer-loading").show();
+            $("#form-transfer-gaji").hide();
+            $("#modal-transfer-gaji").modal("show");
+
+            $.ajax({
+                url: BASE + `/${salaryId}/calculate-transfer`,
+                method: "GET",
+                dataType: "json",
+                success: function(res) {
+                    $("#transfer-loading").hide();
+                    if (!res.status) {
+                        Toast.fire({ icon: "error", title: res.message });
+                        $("#modal-transfer-gaji").modal("hide");
+                        return;
+                    }
+
+                    let d = res.data;
+                    $("#form-transfer-gaji").show();
+
+                    // Info Header
+                    $("#tf_user_name").text(d.user_name);
+                    $("#tf_period_name").text("Periode: " + d.month_name);
+                    $("#tf_current_balance").text(d.current_balance !== null ? formatRupiah(d.current_balance) : 'Tidak terhubung API');
+
+                    // Gaji Pokok & Tunjangan
+                    $("#tf_base_salary").text(formatRupiah(d.base_salary));
+                    let allwHtml = '';
+                    if (d.allowances && d.allowances.length > 0) {
+                        d.allowances.forEach(alw => {
+                            allwHtml += `
+                                <div class="d-flex justify-content-between py-1 small">
+                                    <span class="text-muted">• ${alw.name}:</span>
+                                    <span>+${formatRupiah(alw.amount)}</span>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        allwHtml = '<div class="text-muted small py-1 fst-italic">Tidak memiliki tunjangan</div>';
+                    }
+                    $("#tf_allowance_list").html(allwHtml);
+                    let subtotalIncome = d.base_salary + d.total_allowance;
+                    $("#tf_subtotal_income").text(formatRupiah(subtotalIncome));
+
+                    // Kasbon
+                    let caHtml = '';
+                    if (d.cash_advances && d.cash_advances.length > 0) {
+                        d.cash_advances.forEach(ca => {
+                            caHtml += `
+                                <div class="d-flex justify-content-between py-1 small">
+                                    <span class="text-muted">• ${ca.title} (${ca.request_date}):</span>
+                                    <span class="text-danger">-${formatRupiah(ca.amount)}</span>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        caHtml = '<div class="text-muted small py-1 fst-italic">Tidak ada potongan kasbon bulan ini</div>';
+                    }
+                    $("#tf_cash_advance_list").html(caHtml);
+                    $("#tf_total_cash_advance").text('-' + formatRupiah(d.total_cash_advance));
+
+                    // Total Bersih Siap Transfer
+                    $("#tf_net_salary").text(formatRupiah(d.net_salary));
+
+                    // Simpan data saldo dan nominal transfer di atribut modal
+                    $("#modal-transfer-gaji").data("current_balance", d.current_balance);
+                    $("#modal-transfer-gaji").data("net_salary", d.net_salary);
+
+                    // Cek jika saldo website kurang
+                    let btnTransfer = $("#btn-submit-transfer");
+                    if (d.current_balance !== null && d.current_balance < d.net_salary) {
+                        btnTransfer.prop("disabled", true);
+                        btnTransfer.removeClass("btn-success").addClass("btn-danger");
+                        btnTransfer.html(`
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 9v4" /><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z" /><path d="M12 16h.01" /></svg>
+                            Saldo Website Kurang (${formatRupiah(d.current_balance)})
+                        `);
+                        Toast.fire({
+                            icon: "warning",
+                            title: "Saldo Website Tidak Cukup untuk transfer gaji ini!"
+                        });
+                    } else {
+                        btnTransfer.prop("disabled", false);
+                        btnTransfer.removeClass("btn-danger").addClass("btn-success");
+                        btnTransfer.html(`
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M3 6m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" /></svg>
+                            Kirim Transfer Gaji Sekarang
+                        `);
+                    }
+
+                    // Pre-fill Rekening Bank
+                    if (d.bank_name) {
+                        $("#tf_bank_name").val(d.bank_name);
+                    }
+                    $("#tf_account_number").val(d.account_number || '');
+                    $("#tf_account_holder_name").val(d.account_holder_name || d.user_name || '');
+                },
+                error: function(xhr) {
+                    $("#transfer-loading").hide();
+                    Toast.fire({ icon: "error", title: "Gagal memuat rincian kalkulasi gaji." });
+                    $("#modal-transfer-gaji").modal("hide");
+                }
+            });
+        }
+
+        // Submit transfer gaji ke Xendit
+        function submitTransferGaji() {
+            let salaryId = $("#tf_salary_id").val();
+            let bankName = $("#tf_bank_name").val();
+            let accNumber = $("#tf_account_number").val().trim();
+            let accHolder = $("#tf_account_holder_name").val().trim();
+            let netSalaryText = $("#tf_net_salary").text();
+            let userName = $("#tf_user_name").text();
+
+            let currentBal = $("#modal-transfer-gaji").data("current_balance");
+            let netSalVal  = $("#modal-transfer-gaji").data("net_salary");
+
+            // VALIDASI SISI CLIENT: Tolak jika saldo website kurang
+            if (currentBal !== null && currentBal !== undefined && currentBal < netSalVal) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Saldo Website Tidak Cukup",
+                    html: `Saldo website saat ini: <strong>${formatRupiah(currentBal)}</strong><br>Nominal transfer yang dibutuhkan: <strong>${formatRupiah(netSalVal)}</strong><br><br><span class="text-danger">Transfer gaji dibatalkan dan tidak dikirim ke Xendit.</span>`,
+                });
+                return;
+            }
+
+            if (!bankName || !accNumber) {
+                Toast.fire({
+                    icon: "warning",
+                    title: "Harap lengkapi Nama Bank dan Nomor Rekening tujuan transfer."
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: "Konfirmasi Transfer Gaji",
+                html: `Anda akan mentransfer gaji bersih sebesar <strong>${netSalaryText}</strong> ke rekening <strong>${bankName} ${accNumber}</strong> a/n <strong>${accHolder}</strong> (${userName}).<br><br><small class="text-muted">Proses ini akan mengirim uang via Xendit & memotong saldo website.</small>`,
+                icon: "question",
+                showCancelButton: true,
+                confirmButtonColor: "#2fb344",
+                cancelButtonColor: "#d33",
+                confirmButtonText: "Ya, Kirim Transfer",
+                cancelButtonText: "Batal",
+                showLoaderOnConfirm: true,
+                preConfirm: () => {
+                    return $.ajax({
+                        url: BASE + `/${salaryId}/process-transfer`,
+                        method: "POST",
+                        data: {
+                            _token: "{{ csrf_token() }}",
+                            bank_name: bankName,
+                            account_number: accNumber,
+                            account_holder_name: accHolder,
+                        },
+                        dataType: "json"
+                    }).then(response => {
+                        return response;
+                    }).catch(error => {
+                        let msg = "Terjadi kesalahan pada server.";
+                        if (error.responseJSON && error.responseJSON.message) {
+                            msg = error.responseJSON.message;
+                        }
+                        Swal.showValidationMessage(msg);
+                    });
+                },
+                allowOutsideClick: () => !Swal.isLoading()
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    let res = result.value;
+                    if (res.status) {
+                        $("#modal-transfer-gaji").modal("hide");
+                        Swal.fire({
+                            icon: "success",
+                            title: "Transfer Berhasil Dikirim!",
+                            html: `
+                                <p class="mb-2">${res.message || 'Permintaan transfer gaji telah berhasil dikirim.'}</p>
+                                <div class="alert alert-info py-2 px-3 text-start small mb-0 mt-3" style="background-color: #f0f8ff; border: 1px solid #b9ddff; border-radius: 8px;">
+                                    <div class="fw-bold mb-1">ℹ️ Informasi Penting:</div>
+                                    <ul class="ps-3 mb-0">
+                                        <li>Silahkan cek status pada <strong>Riwayat Pembayaran</strong> secara berkala.</li>
+                                        <li>Jika transfer bank <strong>gagal</strong>, sistem akan <strong>otomatis mengembalikan (refund) saldo website</strong> Anda.</li>
+                                    </ul>
+                                </div>
+                            `,
+                            timer: 5000,
+                            showConfirmButton: false
+                        });
+
+                        if (res.wa_link_user) {
+                            setTimeout(() => {
+                                window.open(res.wa_link_user, '_blank');
+                            }, 1000);
+                        }
+
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2500);
+                    } else {
+                        Toast.fire({
+                            icon: "error",
+                            title: res.message
+                        });
+                    }
                 }
             });
         }
