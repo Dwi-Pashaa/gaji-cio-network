@@ -102,6 +102,7 @@ Route::middleware(['auth'])->group(function () {
 
         Route::prefix('approval')->group(function () {
             Route::get('/', [CashAdvanceController::class, 'approval'])->name('cash.advance.approval')->can('approve kasbon');
+            Route::get('/{id}/calculate-transfer', [CashAdvanceController::class, 'calculateTransfer'])->name('cash.advance.calculateTransfer')->can('approve kasbon');
             Route::put('/{id}/approve', [CashAdvanceController::class, 'approve'])->name('salary.approve')->can('approve kasbon');
             Route::put('/{id}/rejected', [CashAdvanceController::class, 'rejected'])->name('salary.rejected')->can('tolak kasbon');
             Route::post('/updatePhone', [CashAdvanceController::class, 'updatePhone'])->name('salary.updatePhone');
@@ -153,6 +154,8 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('settings')->group(function () {
         Route::get('/', [SettingController::class, 'index'])->name('settings.index');
         Route::post('/otp-channel', [SettingController::class, 'updateOtpChannel'])->name('settings.otpChannel.update');
+        Route::post('/notifications', [SettingController::class, 'updateNotificationSettings'])->name('settings.notifications.update');
+        Route::post('/finance', [SettingController::class, 'updateFinanceSettings'])->name('settings.finance.update');
         Route::post('/test-email', [SettingController::class, 'testEmail'])->name('settings.testEmail');
     });
 });

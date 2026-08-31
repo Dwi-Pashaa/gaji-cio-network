@@ -275,33 +275,45 @@
                         @endif
                     </span>
                 </div>
+                <div class="info-group">
+                    <label>Metode Pembayaran</label>
+                    <span>
+                        @if(($payment->payment_type ?? 'xendit') === 'manual')
+                            <span style="color: #2563eb;">🏢 Saldo Manual (Kas / Bank Manual)</span>
+                        @else
+                            <span style="color: #0284c7;">⚡ Saldo Xendit (Disbursement Otomatis)</span>
+                        @endif
+                    </span>
+                </div>
                 <div class="info-group" style="grid-column: span 2;">
                     <label>Diproses Oleh</label>
                     <span>{{ $payment->transferredBy->name ?? 'Admin / Sistem' }}</span>
                 </div>
             </div>
 
-            <div class="section-title">Rekening Tujuan Transfer</div>
-            <div class="info-grid">
-                <div class="info-group">
-                    <label>Bank Tujuan</label>
-                    <span>{{ $payment->bank_name ?? '-' }}</span>
+            @if(($payment->payment_type ?? 'xendit') !== 'manual')
+                <div class="section-title">Rekening Tujuan Transfer</div>
+                <div class="info-grid">
+                    <div class="info-group">
+                        <label>Bank Tujuan</label>
+                        <span>{{ $payment->bank_name ?? '-' }}</span>
+                    </div>
+                    <div class="info-group">
+                        <label>Nomor Rekening</label>
+                        <span>{{ $payment->account_number ?? '-' }}</span>
+                    </div>
+                    <div class="info-group" style="grid-column: span 2;">
+                        <label>Nama Pemilik Rekening</label>
+                        <span>{{ $payment->account_holder_name ?? $payment->user->name ?? '-' }}</span>
+                    </div>
                 </div>
-                <div class="info-group">
-                    <label>Nomor Rekening</label>
-                    <span>{{ $payment->account_number ?? '-' }}</span>
-                </div>
-                <div class="info-group" style="grid-column: span 2;">
-                    <label>Nama Pemilik Rekening</label>
-                    <span>{{ $payment->account_holder_name ?? $payment->user->name ?? '-' }}</span>
-                </div>
-            </div>
+            @endif
 
             <div class="section-title">Rincian Komponen Gaji</div>
             <table class="salary-breakdown-table">
                 <thead>
                     <tr>
-                        <th>Komponen</th>
+                        <th>Deskripsi Komponen</th>
                         <th class="text-right">Nominal</th>
                     </tr>
                 </thead>
@@ -310,12 +322,14 @@
                         <td>Gaji Pokok</td>
                         <td class="text-right">Rp {{ number_format($payment->base_salary, 0, ',', '.') }}</td>
                     </tr>
+                    @if($payment->total_allowance > 0)
+                        <tr>
+                            <td>Total Tunjangan Tambahan</td>
+                            <td class="text-right text-success">+Rp {{ number_format($payment->total_allowance, 0, ',', '.') }}</td>
+                        </tr>
+                    @endif
                     <tr>
-                        <td>Total Tunjangan</td>
-                        <td class="text-right text-success">+Rp {{ number_format($payment->total_allowance, 0, ',', '.') }}</td>
-                    </tr>
-                    <tr>
-                        <td>Potongan Kasbon</td>
+                        <td>Potongan Kasbon / Pinjaman</td>
                         <td class="text-right text-danger">
                             @if($payment->total_cash_advance > 0)
                                 -Rp {{ number_format($payment->total_cash_advance, 0, ',', '.') }}
@@ -331,7 +345,7 @@
                 </tbody>
             </table>
 
-            @if($payment->xendit_disbursement_id || $payment->xendit_external_id)
+            @if(($payment->payment_type ?? 'xendit') === 'xendit' && ($payment->xendit_disbursement_id || $payment->xendit_external_id))
                 <div class="xendit-box">
                     <div class="xendit-title">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a9 9 0 1 0 9 9" /><path d="M12 7v5l3 3" /></svg>

@@ -10,10 +10,15 @@ use App\Models\User;
 use App\Services\FinanceApiService;
 use App\Services\MekariQontakService;
 use App\Services\XenditDisbursementService;
+use App\Mail\CashAdvanceApprovedMail;
+use App\Mail\CashAdvanceRejectedMail;
+use App\Mail\CashAdvanceSubmittedMail;
+use App\Models\Setting;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class CashAdvanceController extends Controller
@@ -42,10 +47,12 @@ class CashAdvanceController extends Controller
             ->orderBy('id', 'DESC')
             ->paginate($sort);
 
-        $banks = XenditDisbursementService::availableBanks();
-        $user  = Auth::user();
+        $banks          = XenditDisbursementService::availableBanks();
+        $user           = Auth::user();
+        $maxCashAdvance = (float) Setting::get('max_cash_advance_amount', 0);
+        $adminFee       = (float) Setting::get('admin_fee_disbursement', 0);
 
-        return view("pages.cash-advance.index", compact("cashAdvance", "banks", "user"));
+        return view("pages.cash-advance.index", compact("cashAdvance", "banks", "user", "maxCashAdvance", "adminFee"));
     }
 
     /**
@@ -53,13 +60,21 @@ class CashAdvanceController extends Controller
      */
     public function store(Request $request)
     {
-        $validation = Validator::make($request->all(), [
-            'title'               => 'required|string|max:255',
-            'amount'              => 'required',
-            'bank_name'           => 'required|string',
-            'account_number'      => 'required|string|max:50',
-            'account_holder_name' => 'required|string|max:100',
-        ]);
+        $paymentType = $request->input('payment_type', 'xendit');
+
+        $rules = [
+            'title'        => 'required|string|max:255',
+            'amount'       => 'required',
+            'payment_type' => 'required|in:xendit,manual',
+        ];
+
+        if ($paymentType === 'xendit') {
+            $rules['bank_name']           = 'required|string';
+            $rules['account_number']      = 'required|string|max:50';
+            $rules['account_holder_name'] = 'required|string|max:100';
+        }
+
+        $validation = Validator::make($request->all(), $rules);
 
         if ($validation->fails()) {
             return response()->json([
@@ -72,9 +87,23 @@ class CashAdvanceController extends Controller
         $user        = Auth::user();
         $requestDate = Carbon::now();
         $amount      = preg_replace('/[^0-9]/', '', $request->amount);
+        $adminFee    = ($paymentType === 'xendit') ? (float) Setting::get('admin_fee_disbursement', 0) : 0.0;
 
-        // Simpan data rekening ke profil user jika belum ada
-        if (!$user->bank_name || !$user->account_number) {
+        // Validasi batas maksimal nominal pengajuan kasbon
+        $maxCashAdvance = (float) Setting::get('max_cash_advance_amount', 0);
+        if ($maxCashAdvance > 0 && (float) $amount > $maxCashAdvance) {
+            return response()->json([
+                'code'   => 400,
+                'status' => 'error',
+                'errors' => [
+                    'amount' => ['Nominal pengajuan kasbon maksimal yang diizinkan adalah Rp ' . number_format($maxCashAdvance, 0, ',', '.')]
+                ],
+                'message' => 'Nominal pengajuan kasbon (Rp ' . number_format((float) $amount, 0, ',', '.') . ') melebihi batas maksimal yang diizinkan (Rp ' . number_format($maxCashAdvance, 0, ',', '.') . ').',
+            ]);
+        }
+
+        // Simpan data rekening ke profil user jika belum ada (hanya jika xendit)
+        if ($paymentType === 'xendit' && (!$user->bank_name || !$user->account_number)) {
             $user->update([
                 'bank_name'           => $request->bank_name,
                 'account_number'      => $request->account_number,
@@ -82,33 +111,62 @@ class CashAdvanceController extends Controller
             ]);
         }
 
-        CashAdvance::create([
+        $cashAdvance = CashAdvance::create([
             'user_id'              => $user->id,
             'request_date'         => $requestDate,
             'amount'               => $amount,
+            'payment_type'         => $paymentType,
+            'admin_fee'            => $adminFee,
             'title'                => $request->title,
-            'bank_name'            => $request->bank_name,
-            'account_number'       => $request->account_number,
-            'account_holder_name'  => $request->account_holder_name,
+            'bank_name'            => ($paymentType === 'xendit') ? $request->bank_name : null,
+            'account_number'       => ($paymentType === 'xendit') ? $request->account_number : null,
+            'account_holder_name'  => ($paymentType === 'xendit') ? $request->account_holder_name : null,
         ]);
 
+        $paymentLabel = ($paymentType === 'xendit') ? "Transfer Bank (Xendit)" : "Uang Tunai / Kas";
         $message = "Pengajuan Kasbon Baru\n\n"
             . "Nama    : {$user->name}\n"
             . "Judul   : {$request->title}\n"
             . "Jumlah  : Rp" . number_format($amount, 0, ',', '.') . "\n"
-            . "Bank    : {$request->bank_name}\n"
-            . "Rek     : {$request->account_number} a/n {$request->account_holder_name}\n"
+            . "Metode  : {$paymentLabel}\n"
+            . ($paymentType === 'xendit' ? "Rek     : {$request->account_number} a/n {$request->account_holder_name} ({$request->bank_name})\n" : "")
             . "Tanggal : " . $requestDate->translatedFormat('l, d F Y');
 
-        // Kirim WhatsApp Otomatis ke Admin via Mekari Qontak jika terkonfigurasi
+        $companie = Companie::latest()->first();
+        $telp = $companie?->telp;
+        $waLink = null;
+        if ($telp) {
+            $waNumber = preg_replace('/^0/', '62', $telp);
+            $waLink = "https://wa.me/{$waNumber}?text=" . rawurlencode($message);
+        }
+
+        // 1. Notifikasi Email
+        if (Setting::get('notify_cash_advance_email', '1') == '1') {
+            try {
+                // Email ke Karyawan
+                if (!empty($user->email)) {
+                    Mail::to($user->email)->send(new CashAdvanceSubmittedMail($cashAdvance, $user, false));
+                }
+
+                // Email ke Admin
+                $adminEmail = Setting::get('admin_notification_email', config('mail.from.address', 'support@cionetwork.id'));
+                if (!empty($adminEmail)) {
+                    Mail::to($adminEmail)->send(new CashAdvanceSubmittedMail($cashAdvance, $user, true));
+                }
+            } catch (\Throwable $th) {
+                Log::warning('[CashAdvance Email] Gagal mengirim email pengajuan kasbon: ' . $th->getMessage());
+            }
+        }
+
+        // 2. Notifikasi WhatsApp ke Admin via Mekari Qontak
         $qontak = app(MekariQontakService::class);
-        if ($qontak->isConfigured()) {
+        if (Setting::get('notify_cash_advance_wa', '1') == '1' && $qontak->isConfigured()) {
             $qontak->notifyAdminNewCashAdvance(
                 employeeName:  $user->name,
                 title:         $request->title,
                 amount:        (float) $amount,
-                bankName:      $request->bank_name,
-                accountNumber: $request->account_number,
+                bankName:      ($paymentType === 'xendit') ? ($request->bank_name ?? '-') : 'Tunai / Kas',
+                accountNumber: ($paymentType === 'xendit') ? ($request->account_number ?? '-') : '-',
                 dateStr:       $requestDate->translatedFormat('d F Y')
             );
         }
@@ -144,13 +202,21 @@ class CashAdvanceController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $validation = Validator::make($request->all(), [
-            'title'               => 'required|string|max:255',
-            'amount'              => 'required',
-            'bank_name'           => 'required|string',
-            'account_number'      => 'required|string|max:50',
-            'account_holder_name' => 'required|string|max:100',
-        ]);
+        $paymentType = $request->input('payment_type', 'xendit');
+
+        $rules = [
+            'title'        => 'required|string|max:255',
+            'amount'       => 'required',
+            'payment_type' => 'required|in:xendit,manual',
+        ];
+
+        if ($paymentType === 'xendit') {
+            $rules['bank_name']           = 'required|string';
+            $rules['account_number']      = 'required|string|max:50';
+            $rules['account_holder_name'] = 'required|string|max:100';
+        }
+
+        $validation = Validator::make($request->all(), $rules);
 
         if ($validation->fails()) {
             return response()->json([
@@ -180,13 +246,16 @@ class CashAdvanceController extends Controller
 
         $user       = Auth::user();
         $amountBaru = preg_replace('/[^0-9]/', '', $request->amount);
+        $adminFee   = ($paymentType === 'xendit') ? (float) Setting::get('admin_fee_disbursement', 0) : 0.0;
 
         $cashAdvance->update([
             'title'               => $request->title,
             'amount'              => $amountBaru,
-            'bank_name'           => $request->bank_name,
-            'account_number'      => $request->account_number,
-            'account_holder_name' => $request->account_holder_name,
+            'payment_type'        => $paymentType,
+            'admin_fee'           => $adminFee,
+            'bank_name'           => ($paymentType === 'xendit') ? $request->bank_name : null,
+            'account_number'      => ($paymentType === 'xendit') ? $request->account_number : null,
+            'account_holder_name' => ($paymentType === 'xendit') ? $request->account_holder_name : null,
             'updated_at'          => Carbon::now(),
         ]);
 
@@ -317,11 +386,67 @@ class CashAdvanceController extends Controller
             ->paginate($sort);
 
         $phone = Companie::latest()->first();
+        $banks = app(XenditDisbursementService::class)->getSupportedBanks();
 
-        return view("pages.cash-advance.approval", compact("cashAdvance", "phone"));
+        return view("pages.cash-advance.approval", compact("cashAdvance", "phone", "banks"));
     }
 
-    public function approve(string $id)
+    public function calculateTransfer(string $id)
+    {
+        $cashAdvance = CashAdvance::with('user')->find($id);
+
+        if (!$cashAdvance) {
+            return response()->json([
+                'code'    => 404,
+                'status'  => false,
+                'message' => 'Data kasbon tidak ditemukan.',
+            ]);
+        }
+
+        $user           = $cashAdvance->user;
+        $amount         = (float) $cashAdvance->amount;
+        $paymentType    = $cashAdvance->payment_type ?: 'xendit';
+        $adminFee       = ($paymentType === 'xendit') ? (float) ($cashAdvance->admin_fee > 0 ? $cashAdvance->admin_fee : Setting::get('admin_fee_disbursement', 0)) : 0.0;
+        $amountXendit   = max(0, $amount - $adminFee);
+        $amountManual   = $amount;
+
+        $financeApi     = app(FinanceApiService::class);
+        $balRes         = $financeApi->getBalance();
+        $balanceManual  = (is_array($balRes) && isset($balRes['balance_manual'])) ? (float) $balRes['balance_manual'] : 0.0;
+        $balanceXendit  = (is_array($balRes) && isset($balRes['balance_xendit'])) ? (float) $balRes['balance_xendit'] : 0.0;
+        $totalBalance   = (is_array($balRes) && isset($balRes['total_balance'])) ? (float) $balRes['total_balance'] : ($balanceManual + $balanceXendit);
+        $balanceVal     = (is_array($balRes) && isset($balRes['balance'])) ? (float) $balRes['balance'] : $totalBalance;
+
+        return response()->json([
+            'code'   => 200,
+            'status' => true,
+            'data'   => [
+                'cash_advance_id'        => $cashAdvance->id,
+                'user_id'                => $user?->id,
+                'user_name'              => $user?->name ?? 'Karyawan',
+                'user_phone'             => $user?->phone,
+                'title'                  => $cashAdvance->title,
+                'payment_type'           => $paymentType,
+                'request_date'           => Carbon::parse($cashAdvance->request_date)->translatedFormat('d F Y'),
+                'amount'                 => $amount,
+                'admin_fee'              => $adminFee,
+                'amount_xendit'          => $amountXendit,
+                'amount_manual'          => $amountManual,
+                'bank_name'              => $cashAdvance->bank_name ?? $user?->bank_name,
+                'account_number'         => $cashAdvance->account_number ?? $user?->account_number,
+                'account_holder_name'    => $cashAdvance->account_holder_name ?? $user?->account_holder_name ?? $user?->name,
+                'balance_manual'         => $balanceManual,
+                'balance_xendit'         => $balanceXendit,
+                'total_balance'          => $totalBalance,
+                'channel_status'         => $balRes['channel_status'] ?? ['manual' => true, 'xendit' => true],
+                'channel_manual_enabled' => $balRes['channel_manual_enabled'] ?? true,
+                'channel_xendit_enabled' => $balRes['channel_xendit_enabled'] ?? true,
+                'current_balance'        => $balanceVal,
+            ],
+        ]);
+    }
+
+    public function approve(Request $request, string $id)
     {
         $cashAdvance = CashAdvance::with('user')->find($id);
 
@@ -341,54 +466,111 @@ class CashAdvanceController extends Controller
             ]);
         }
 
-        $financeApi = app(FinanceApiService::class);
-        $xendit     = app(XenditDisbursementService::class);
-        $user       = $cashAdvance->user ?? User::find($cashAdvance->user_id);
-        $amount     = (float) $cashAdvance->amount;
+        $rawType        = $request->input('transfer_type') ?: ($cashAdvance->payment_type ?: 'xendit');
+        $transferType   = in_array($rawType, ['xendit', 'manual']) ? $rawType : 'xendit';
+        $financeApi     = app(FinanceApiService::class);
+        $xendit         = app(XenditDisbursementService::class);
+        $user           = $cashAdvance->user ?? User::find($cashAdvance->user_id);
+        $amount         = (float) $cashAdvance->amount;
+        $adminFee       = ($transferType === 'xendit') ? (float) ($cashAdvance->admin_fee > 0 ? $cashAdvance->admin_fee : Setting::get('admin_fee_disbursement', 0)) : 0.0;
+        $transferAmount = max(0, $amount - $adminFee);
+
+        if ($transferAmount <= 0) {
+            return response()->json([
+                'code'    => 400,
+                'status'  => 'error',
+                'message' => 'Nominal transfer kasbon Rp 0 atau minus setelah dipotong biaya admin.',
+            ]);
+        }
+
+        // Update rekening jika transfer via Xendit
+        $bankName          = $request->input('bank_name', $cashAdvance->bank_name);
+        $accountNumber     = $request->input('account_number', $cashAdvance->account_number);
+        $accountHolderName = $request->input('account_holder_name', $cashAdvance->account_holder_name ?? $user?->name);
+
+        if ($transferType === 'xendit' && $bankName && $accountNumber) {
+            $cashAdvance->update([
+                'bank_name'           => $bankName,
+                'account_number'      => $accountNumber,
+                'account_holder_name' => $accountHolderName,
+            ]);
+        }
 
         // ─────────────────────────────────────────────────────────────────
-        // LANGKAH 1: Cek saldo website dari API Finance
+        // LANGKAH 1: Cek saldo website dari API Finance & Channel Status
         // ─────────────────────────────────────────────────────────────────
         if ($financeApi->isConfigured()) {
             $balanceResult = $financeApi->getBalance();
 
             if (!$balanceResult['success']) {
                 return response()->json([
-                    'code'   => 400,
-                    'status' => 'error',
+                    'code'    => 400,
+                    'status'  => 'error',
                     'message' => 'Gagal memeriksa saldo website: ' . $balanceResult['message'],
                 ]);
             }
 
-            if ($balanceResult['balance'] < $amount) {
-                return response()->json([
-                    'code'   => 400,
-                    'status' => 'error',
-                    'message' => 'Saldo Website Anda Tidak Cukup. '
-                        . 'Saldo saat ini: Rp ' . number_format($balanceResult['balance'], 0, ',', '.') . ', '
-                        . 'dibutuhkan: Rp ' . number_format($amount, 0, ',', '.') . '.',
-                ]);
+            $balManual     = (float) ($balanceResult['balance_manual'] ?? 0);
+            $balXendit     = (float) ($balanceResult['balance_xendit'] ?? 0);
+            $manualEnabled = (bool) ($balanceResult['channel_manual_enabled'] ?? true);
+            $xenditEnabled = (bool) ($balanceResult['channel_xendit_enabled'] ?? true);
+
+            if ($transferType === 'manual') {
+                if (!$manualEnabled) {
+                    return response()->json([
+                        'code'    => 400,
+                        'status'  => 'error',
+                        'message' => 'Saluran Saldo Manual sedang dinonaktifkan oleh administrator Finance API.',
+                    ]);
+                }
+                if ($balManual < $transferAmount) {
+                    return response()->json([
+                        'code'    => 400,
+                        'status'  => 'error',
+                        'message' => 'Saldo Manual Tidak Cukup. Saldo saat ini: Rp ' . number_format($balManual, 0, ',', '.') . ', dibutuhkan: Rp ' . number_format($transferAmount, 0, ',', '.') . '.',
+                    ]);
+                }
+            } else {
+                if (!$xenditEnabled) {
+                    return response()->json([
+                        'code'    => 400,
+                        'status'  => 'error',
+                        'message' => 'Saluran Saldo Xendit sedang dinonaktifkan oleh administrator Finance API.',
+                    ]);
+                }
+                if ($balXendit < $transferAmount) {
+                    return response()->json([
+                        'code'    => 400,
+                        'status'  => 'error',
+                        'message' => 'Saldo Xendit Tidak Cukup. Saldo saat ini: Rp ' . number_format($balXendit, 0, ',', '.') . ', dibutuhkan: Rp ' . number_format($transferAmount, 0, ',', '.') . '.',
+                    ]);
+                }
             }
         }
 
         // ─────────────────────────────────────────────────────────────────
-        // LANGKAH 2: Set status transferring
+        // LANGKAH 2: Set status transferring & payment_type
         // ─────────────────────────────────────────────────────────────────
         $cashAdvance->update([
-            'status'        => 'transferring',
+            'payment_type'  => $transferType,
+            'admin_fee'     => $adminFee,
+            'status'        => ($transferType === 'xendit' && $xendit->isConfigured()) ? 'transferring' : 'transferred',
             'approved_date' => Carbon::now(),
+            'transfer_at'   => ($transferType === 'xendit' && $xendit->isConfigured()) ? null : Carbon::now(),
         ]);
 
+        $externalId = 'KB-' . $cashAdvance->id . '-' . time();
+
         // ─────────────────────────────────────────────────────────────────
-        // LANGKAH 3: Kirim disbursement via Xendit
+        // LANGKAH 3: Kirim disbursement via Xendit (Jika tipe Xendit)
         // ─────────────────────────────────────────────────────────────────
-        if ($xendit->isConfigured()) {
+        if ($transferType === 'xendit' && $xendit->isConfigured()) {
             $disbResult = $xendit->sendDisbursement(
-                externalId:         'KB-' . $cashAdvance->id . '-' . time(),
+                externalId:         $externalId,
                 bankCode:           $cashAdvance->bank_name,
                 accountNumber:      $cashAdvance->account_number,
                 accountHolderName:  $cashAdvance->account_holder_name,
-                amount:             $amount,
+                amount:             $transferAmount,
                 description:        'Kasbon: ' . $cashAdvance->title . ' - ' . ($user->name ?? 'Karyawan')
             );
 
@@ -411,16 +593,11 @@ class CashAdvanceController extends Controller
                 ]);
             }
 
-            // Xendit sukses → update ke transferred
+            // Xendit sukses dikirim
             $cashAdvance->update([
-                'status'                 => 'transferred',
                 'xendit_disbursement_id' => $disbResult['disbursement_id'],
-                'xendit_status'          => $disbResult['status'],
-                'transfer_at'            => Carbon::now(),
+                'xendit_status'          => $disbResult['status'] ?? 'PENDING',
             ]);
-        } else {
-            // Xendit belum dikonfigurasi → langsung approved (manual transfer)
-            $cashAdvance->update(['status' => 'approved']);
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -428,11 +605,12 @@ class CashAdvanceController extends Controller
         // ─────────────────────────────────────────────────────────────────
         if ($financeApi->isConfigured()) {
             $financeApi->deductBalance(
-                amount:       $amount,
-                referenceId:  'KB-' . $cashAdvance->id,
-                description:  'Pembayaran kasbon karyawan: ' . ($user->name ?? 'Karyawan'),
+                amount:       $transferAmount,
+                referenceId:  $externalId,
+                description:  'Pembayaran kasbon karyawan: ' . ($user->name ?? 'Karyawan') . ($transferType === 'xendit' ? ($adminFee > 0 ? ' (terpotong admin Rp ' . number_format($adminFee, 0, ',', '.') . ')' : '') : ' (Manual)'),
                 category:     'kasbon',
-                note:         'Kasbon: ' . $cashAdvance->title . ' - ' . ($user->name ?? '')
+                note:         'Pengajuan Kasbon: Rp ' . number_format($amount, 0, ',', '.') . ($adminFee > 0 ? ' - Potongan Admin: Rp ' . number_format($adminFee, 0, ',', '.') : '') . ' = Ditransfer: Rp ' . number_format($transferAmount, 0, ',', '.'),
+                balanceType:  $transferType
             );
         }
 
@@ -452,10 +630,20 @@ class CashAdvanceController extends Controller
         $transferred = ($cashAdvance->status === 'transferred');
         $invoiceUrl  = route('cash.advance.invoice', $cashAdvance->id);
 
-        // Hanya kirim WA langsung jika BUKAN via Xendit (manual transfer)
-        // Jika via Xendit, WA akan dikirim dari XenditCallbackController saat COMPLETED
+        // Hanya kirim notifikasi langsung jika BUKAN via Xendit (manual transfer)
+        // Jika via Xendit, notifikasi akan dikirim dari XenditCallbackController saat COMPLETED
         if (!$xendit->isConfigured()) {
-            if ($qontak->isConfigured() && $phoneUser) {
+            // Notifikasi Email ke Karyawan
+            if (Setting::get('notify_cash_advance_email', '1') == '1' && !empty($user->email)) {
+                try {
+                    Mail::to($user->email)->send(new CashAdvanceApprovedMail($cashAdvance, $user, $transferred, $invoiceUrl));
+                } catch (\Throwable $th) {
+                    Log::warning('[CashAdvance Email] Gagal mengirim email persetujuan kasbon: ' . $th->getMessage());
+                }
+            }
+
+            // Notifikasi WhatsApp ke Karyawan
+            if (Setting::get('notify_cash_advance_wa', '1') == '1' && $qontak->isConfigured() && $phoneUser) {
                 $qontak->notifyEmployeeApproval(
                     employeeName:       $user->name,
                     employeePhone:      $phoneUser,
@@ -483,7 +671,7 @@ class CashAdvanceController extends Controller
 
         $encodedMsg = rawurlencode($message);
         $successMsg = $xendit->isConfigured()
-            ? 'Transfer kasbon Rp ' . number_format($amount, 0, ',', '.') . ' sedang diproses. Notifikasi WhatsApp akan dikirim ke karyawan setelah transfer dikonfirmasi.'
+            ? 'Transfer kasbon Rp ' . number_format($amount, 0, ',', '.') . ' sedang diproses. Notifikasi akan dikirim ke karyawan setelah transfer dikonfirmasi.'
             : ($transferred
                 ? 'Kasbon Rp ' . number_format($amount, 0, ',', '.') . ' berhasil disetujui & ditransfer ke ' . $cashAdvance->account_holder_name . '.'
                 : 'Kasbon berhasil disetujui.');
@@ -516,6 +704,15 @@ class CashAdvanceController extends Controller
             'approved_date' => Carbon::now(),
         ]);
 
+        // Notifikasi Email ke Karyawan
+        if (Setting::get('notify_cash_advance_email', '1') == '1' && !empty($user->email)) {
+            try {
+                Mail::to($user->email)->send(new CashAdvanceRejectedMail($cashAdvance, $user));
+            } catch (\Throwable $th) {
+                Log::warning('[CashAdvance Email] Gagal mengirim email penolakan kasbon: ' . $th->getMessage());
+            }
+        }
+
         $qontak       = app(MekariQontakService::class);
         $companySetting = Companie::latest()->first();
         $defaultPhone = MekariQontakService::formatPhone($companySetting?->telp) ?? '6285324780031';
@@ -524,7 +721,7 @@ class CashAdvanceController extends Controller
             $phoneUser = MekariQontakService::formatPhone($phoneUser);
         }
 
-        if ($qontak->isConfigured() && $phoneUser) {
+        if (Setting::get('notify_cash_advance_wa', '1') == '1' && $qontak->isConfigured() && $phoneUser) {
             $qontak->notifyEmployeeRejection(
                 employeeName:  $user->name,
                 employeePhone: $phoneUser,

@@ -78,6 +78,28 @@
         display: inline-block;
         animation: pulse-green 2s infinite;
     }
+    .balance-card-item {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 12px;
+        transition: all 0.25s ease;
+        backdrop-filter: blur(6px);
+    }
+    .balance-card-item:hover {
+        background: rgba(255, 255, 255, 0.14);
+        border-color: rgba(255, 255, 255, 0.32);
+        transform: translateY(-2px);
+    }
+    .balance-card-highlight {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.06) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 12px;
+        transition: all 0.25s ease;
+    }
+    .balance-card-highlight:hover {
+        border-color: rgba(255, 255, 255, 0.45);
+        transform: translateY(-2px);
+    }
 </style>
 @endpush
 
@@ -124,16 +146,17 @@
 
     {{-- SISI ADMIN (RINGKASAN EKSEKUTIF, SALDO FINANCE, KASBON & TRANSFER GAJI) --}}
     @role("Admin")
-        <!-- Admin Dashboard Section: Realtime Saldo Website Finance -->
+        <!-- Admin Dashboard Section: Realtime 2 Saldo Website Finance (Saldo Manual & Saldo Xendit) -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="finance-hero-card p-4">
-                    <div class="row align-items-center position-relative" style="z-index: 2;">
-                        <div class="col-lg-8">
-                            <div class="d-flex align-items-center gap-2 mb-3">
+                    <div class="position-relative" style="z-index: 2;">
+                        <!-- Header Status Bar -->
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-3 border-bottom" style="border-color: rgba(255,255,255,0.15) !important;">
+                            <div class="d-flex flex-wrap align-items-center gap-2">
                                 <span class="badge bg-white-lt text-white px-3 py-1 d-inline-flex align-items-center gap-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 21l18 0" /><path d="M3 10l18 0" /><path d="M5 6l7 -3l7 3" /><path d="M4 10l0 11" /><path d="M20 10l0 11" /><path d="M8 14l0 3" /><path d="M12 14l0 3" /><path d="M16 14l0 3" /></svg>
-                                    Integrasi Saldo Web Slip (Finance API)
+                                    Integrasi Saldo Web (Finance API)
                                 </span>
                                 @if(isset($financeBalance) && $financeBalance['success'])
                                     <span class="badge bg-success-lt text-success px-3 py-1 d-inline-flex align-items-center gap-2">
@@ -146,16 +169,6 @@
                                     </span>
                                 @endif
                             </div>
-                            <div class="text-white-50 text-uppercase fw-semibold small mb-1" style="letter-spacing: 0.08em;">
-                                Saldo Web Slip Saat Ini
-                            </div>
-                            <div class="text-white fw-bold display-5 mb-2" style="text-shadow: 0 2px 8px rgba(0,0,0,0.3);">
-                                @if(isset($financeBalance) && $financeBalance['success'])
-                                    Rp {{ number_format($financeBalance['balance'], 0, ',', '.') }}
-                                @else
-                                    Rp —
-                                @endif
-                            </div>
                             <div class="text-white-50 small">
                                 @if(isset($financeBalance) && $financeBalance['success'])
                                     Client: <strong class="text-white">{{ $financeBalance['data']['client_name'] ?? 'Web Slip' }}</strong>
@@ -165,15 +178,92 @@
                                 @endif
                             </div>
                         </div>
-                        <div class="col-lg-4 mt-3 mt-lg-0 text-lg-end">
-                            <div class="d-inline-block text-start bg-white-lt p-3 rounded-3 border border-white-50">
-                                <div class="text-white-50 small text-uppercase fw-bold mb-1">Proteksi Saldo Otomatis</div>
-                                <div class="text-success fw-bold fs-3 d-flex align-items-center gap-1 mb-1">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" stroke-width="2.5" stroke="#2ea44f" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>
-                                    Cek Saldo Sebelum Transfer
+
+                        <!-- 2 Saldo (Manual & Xendit) + Total Saldo Cards -->
+                        <div class="row g-3 align-items-stretch">
+                            <!-- 1. Saldo Manual -->
+                            <div class="col-md-4">
+                                <div class="balance-card-item p-3 h-100 d-flex flex-column justify-content-between">
+                                    <div>
+                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="avatar avatar-xs rounded bg-primary-lt text-white">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M17 8v-3a1 1 0 0 0 -1 -1h-10a2 2 0 0 0 0 4h12a1 1 0 0 1 1 1v3m0 4v3a1 1 0 0 1 -1 1h-12a2 2 0 0 1 -2 -2v-12" /><path d="M20 12v4h-4a2 2 0 0 1 0 -4h4" /></svg>
+                                                </span>
+                                                <span class="text-white fw-semibold small text-uppercase" style="letter-spacing: 0.05em;">
+                                                    Saldo Manual
+                                                </span>
+                                            </div>
+                                            @if(isset($financeBalance) && $financeBalance['success'] && !($financeBalance['channel_manual_enabled'] ?? true))
+                                                <span class="badge bg-danger-lt text-danger" style="font-size: 0.7rem;">⚠️ Nonaktif</span>
+                                            @else
+                                                <span class="badge bg-primary-lt text-white" style="font-size: 0.7rem;">Kas / Bank</span>
+                                            @endif
+                                        </div>
+                                        <div class="text-white fw-bold mb-1" style="font-size: 1.65rem; text-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+                                            @if(isset($financeBalance) && $financeBalance['success'])
+                                                Rp {{ number_format($financeBalance['balance_manual'] ?? ($financeBalance['data']['balance_manual'] ?? 0), 0, ',', '.') }}
+                                            @else
+                                                Rp —
+                                            @endif
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="text-white-50 small" style="font-size: 0.75rem;">
-                                    Transfer gaji & kasbon ditolak otomatis jika saldo tidak mencukupi
+                            </div>
+
+                            <!-- 2. Saldo Xendit -->
+                            <div class="col-md-4">
+                                <div class="balance-card-item p-3 h-100 d-flex flex-column justify-content-between">
+                                    <div>
+                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="avatar avatar-xs rounded bg-azure-lt text-white">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0z" /></svg>
+                                                </span>
+                                                <span class="text-white fw-semibold small text-uppercase" style="letter-spacing: 0.05em;">
+                                                    Saldo Xendit
+                                                </span>
+                                            </div>
+                                            @if(isset($financeBalance) && $financeBalance['success'] && !($financeBalance['channel_xendit_enabled'] ?? true))
+                                                <span class="badge bg-danger-lt text-danger" style="font-size: 0.7rem;">⚠️ Nonaktif</span>
+                                            @else
+                                                <span class="badge bg-azure-lt text-white" style="font-size: 0.7rem;">Disbursement</span>
+                                            @endif
+                                        </div>
+                                        <div class="text-white fw-bold mb-1" style="font-size: 1.65rem; text-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+                                            @if(isset($financeBalance) && $financeBalance['success'])
+                                                Rp {{ number_format($financeBalance['balance_xendit'] ?? ($financeBalance['data']['balance_xendit'] ?? 0), 0, ',', '.') }}
+                                            @else
+                                                Rp —
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 3. Total Saldo Gabungan -->
+                            <div class="col-md-4">
+                                <div class="balance-card-highlight p-3 h-100 d-flex flex-column justify-content-between">
+                                    <div>
+                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="avatar avatar-xs rounded bg-success-lt text-white">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3v12" /><path d="M16 7l-4 -4l-4 4" /><path d="M3 13v4a4 4 0 0 0 4 4h10a4 4 0 0 0 4 -4v-4" /></svg>
+                                                </span>
+                                                <span class="text-white fw-bold small text-uppercase" style="letter-spacing: 0.05em;">
+                                                    Total Saldo
+                                                </span>
+                                            </div>
+                                            <span class="badge bg-success text-white" style="font-size: 0.7rem;">Akumulasi</span>
+                                        </div>
+                                        <div class="text-white fw-bold mb-1" style="font-size: 1.65rem; text-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+                                            @if(isset($financeBalance) && $financeBalance['success'])
+                                                Rp {{ number_format($financeBalance['total_balance'] ?? ($financeBalance['data']['total_balance'] ?? ($financeBalance['balance'] ?? 0)), 0, ',', '.') }}
+                                            @else
+                                                Rp —
+                                            @endif
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

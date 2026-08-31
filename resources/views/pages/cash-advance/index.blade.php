@@ -178,47 +178,106 @@
 
                     {{-- Jumlah Kasbon --}}
                     <div class="form-group mb-3">
-                        <label for="amount" class="mb-2">Jumlah Kasbon (Rp)</label>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label for="amount" class="mb-0">Jumlah Kasbon (Rp)</label>
+                            @if(isset($maxCashAdvance) && $maxCashAdvance > 0)
+                                <span class="badge bg-blue-lt text-primary small">Maks. Rp {{ number_format($maxCashAdvance, 0, ',', '.') }}</span>
+                            @endif
+                        </div>
                         <input type="text" name="amount" id="amount" class="form-control" placeholder="Misal: 1000000">
                         <span class="invalid-feedback error_amount text-danger" style="display:none;"></span>
+                        @if(isset($adminFee) && $adminFee > 0)
+                            <div class="form-text text-muted small mt-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 9h.01" /><path d="M11 12h1v4h1" /><circle cx="12" cy="12" r="9" /></svg>
+                                Biaya admin transfer bank/Xendit: <strong>Rp {{ number_format($adminFee, 0, ',', '.') }}</strong> per transaksi.
+                            </div>
+                        @endif
                     </div>
 
-                    <hr class="my-3">
-                    <p class="text-muted small mb-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 9h.01" /><path d="M11 12h1v4h1" /><circle cx="12" cy="12" r="9" /></svg>
-                        Dana kasbon akan ditransfer otomatis ke rekening di bawah saat disetujui.
-                    </p>
-
-                    {{-- Pilihan Bank --}}
+                    {{-- Pilihan Metode Pencairan --}}
                     <div class="form-group mb-3">
-                        <label for="bank_name" class="mb-2">Nama Bank</label>
-                        <select name="bank_name" id="bank_name" class="form-control">
-                            <option value="">-- Pilih Bank --</option>
-                            @foreach ($banks as $code => $label)
-                                <option value="{{ $code }}" {{ ($user->bank_name === $code) ? 'selected' : '' }}>
-                                    {{ $label }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <span class="invalid-feedback error_bank_name text-danger" style="display:none;"></span>
+                        <label class="form-label fw-bold mb-2">Metode Pencairan Dana</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-selectgroup-item w-100">
+                                    <input type="radio" name="payment_type" value="xendit" class="form-selectgroup-input" checked id="pt_xendit" onchange="togglePaymentType('xendit')">
+                                    <div class="form-selectgroup-label d-flex align-items-center p-2 text-start border rounded">
+                                        <span class="me-2 fs-3">⚡</span>
+                                        <div>
+                                            <div class="fw-semibold text-dark">Transfer Bank</div>
+                                            <div class="text-muted small" style="font-size: 0.72rem;">Otomatis via Xendit</div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-selectgroup-item w-100">
+                                    <input type="radio" name="payment_type" value="manual" class="form-selectgroup-input" id="pt_manual" onchange="togglePaymentType('manual')">
+                                    <div class="form-selectgroup-label d-flex align-items-center p-2 text-start border rounded">
+                                        <span class="me-2 fs-3">💵</span>
+                                        <div>
+                                            <div class="fw-semibold text-dark">Uang Tunai / Kas</div>
+                                            <div class="text-muted small" style="font-size: 0.72rem;">Tanpa Biaya Admin</div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
-                    {{-- Nomor Rekening --}}
-                    <div class="form-group mb-3">
-                        <label for="account_number" class="mb-2">Nomor Rekening</label>
-                        <input type="text" name="account_number" id="account_number" class="form-control"
-                               placeholder="Contoh: 1234567890"
-                               value="{{ $user->account_number ?? '' }}">
-                        <span class="invalid-feedback error_account_number text-danger" style="display:none;"></span>
+                    {{-- Section Khusus Transfer Bank (Xendit) --}}
+                    <div id="bank_section">
+                        <div class="p-2 mb-3 bg-azure-lt border border-azure-subtle rounded small">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" class="me-1 text-azure"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 9h.01" /><path d="M11 12h1v4h1" /><circle cx="12" cy="12" r="9" /></svg>
+                            Dana akan ditransfer otomatis ke rekening di bawah. @if(isset($adminFee) && $adminFee > 0) Biaya admin transfer: <strong>Rp {{ number_format($adminFee, 0, ',', '.') }}</strong> (dipotong dari nominal yang diterima). @endif
+                        </div>
+
+                        {{-- Pilihan Bank --}}
+                        <div class="form-group mb-3">
+                            <label for="bank_name" class="mb-2">Nama Bank</label>
+                            <select name="bank_name" id="bank_name" class="form-control">
+                                <option value="">-- Pilih Bank --</option>
+                                @foreach ($banks as $code => $label)
+                                    <option value="{{ $code }}" {{ ($user->bank_name === $code) ? 'selected' : '' }}>
+                                        {{ $label }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <span class="invalid-feedback error_bank_name text-danger" style="display:none;"></span>
+                        </div>
+
+                        {{-- Nomor Rekening --}}
+                        <div class="form-group mb-3">
+                            <label for="account_number" class="mb-2">Nomor Rekening</label>
+                            <input type="text" name="account_number" id="account_number" class="form-control"
+                                   placeholder="Contoh: 1234567890"
+                                   value="{{ $user->account_number ?? '' }}">
+                            <span class="invalid-feedback error_account_number text-danger" style="display:none;"></span>
+                        </div>
+
+                        {{-- Nama Pemilik Rekening --}}
+                        <div class="form-group mb-3">
+                            <label for="account_holder_name" class="mb-2">Nama Pemilik Rekening</label>
+                            <input type="text" name="account_holder_name" id="account_holder_name" class="form-control"
+                                   placeholder="Sesuai buku tabungan"
+                                   value="{{ $user->account_holder_name ?? $user->name ?? '' }}">
+                            <span class="invalid-feedback error_account_holder_name text-danger" style="display:none;"></span>
+                        </div>
                     </div>
 
-                    {{-- Nama Pemilik Rekening --}}
-                    <div class="form-group mb-3">
-                        <label for="account_holder_name" class="mb-2">Nama Pemilik Rekening</label>
-                        <input type="text" name="account_holder_name" id="account_holder_name" class="form-control"
-                               placeholder="Sesuai buku tabungan"
-                               value="{{ $user->account_holder_name ?? $user->name ?? '' }}">
-                        <span class="invalid-feedback error_account_holder_name text-danger" style="display:none;"></span>
+                    {{-- Section Khusus Pembayaran Kas / Tunai (Manual) --}}
+                    <div id="cash_section" style="display: none;">
+                        <div class="alert alert-info py-3 px-3 mb-3" style="background-color: #f0f7ff; border: 1px solid #c8e1ff; border-radius: 8px;">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="avatar avatar-md bg-primary text-white rounded-circle fs-3">💵</span>
+                                <div>
+                                    <div class="fw-bold text-primary">Pencairan Kasbon Tunai (Tanpa Potongan)</div>
+                                    <div class="text-muted small">
+                                        Dana kasbon akan diserahkan secara tunai oleh bendahara/admin setelah disetujui. Tidak ada potongan biaya admin.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -255,6 +314,18 @@
         }
     });
 
+    function togglePaymentType(type) {
+        if (type === 'xendit') {
+            $("#pt_xendit").prop('checked', true);
+            $("#bank_section").slideDown(200);
+            $("#cash_section").slideUp(200);
+        } else {
+            $("#pt_manual").prop('checked', true);
+            $("#bank_section").slideUp(200);
+            $("#cash_section").slideDown(200);
+        }
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
         const input = document.getElementById("amount");
 
@@ -275,7 +346,7 @@
         $("#id").val("");
         $("#title").val("");
         $("#amount").val("");
-        // Bank fields di-pre-fill dari data profil (sudah di-set via Blade value attribute)
+        togglePaymentType('xendit');
     });
 
     $("#storeBtn").click(function() {
@@ -283,9 +354,16 @@
         let type                = $("#type").val();
         let title               = $("#title").val();
         let amount              = $("#amount").val();
+        let payment_type        = $("input[name='payment_type']:checked").val() || 'xendit';
         let bank_name           = $("#bank_name").val();
         let account_number      = $("#account_number").val();
         let account_holder_name = $("#account_holder_name").val();
+
+        let originalBtnHtml = $("#storeBtn").html();
+        $("#storeBtn").prop("disabled", true).html(`
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            Memproses...
+        `);
 
         let url, method;
         if (type === 'create') {
@@ -300,13 +378,17 @@
             url: url,
             method: method,
             data: {
+                _token: "{{ csrf_token() }}",
                 title,
                 amount,
+                payment_type,
                 bank_name,
                 account_number,
                 account_holder_name,
             },
         }).done(function(response) {
+            $("#storeBtn").prop("disabled", false).html(originalBtnHtml);
+
             if (response.errors) {
                 $.each(response.errors, function(index, value) {
                     $("#" + index).addClass('is-invalid');
@@ -319,16 +401,21 @@
                 });
             } else {
                 $("#modal-simple").modal('hide');
-                Toast.fire({ icon: response.status, title: response.message });
+                Toast.fire({ icon: response.status || 'success', title: response.message });
 
                 if (response.wa_link) {
-                    setTimeout(() => { window.location.href = response.wa_link; }, 2500);
+                    setTimeout(() => { window.location.href = response.wa_link; }, 1800);
                 } else {
-                    setTimeout(() => { window.location.reload(); }, 2500);
+                    setTimeout(() => { window.location.reload(); }, 1800);
                 }
             }
-        }).fail(function() {
-            Toast.fire({ icon: 'error', title: 'Terjadi kesalahan. Silakan coba lagi.' });
+        }).fail(function(xhr) {
+            $("#storeBtn").prop("disabled", false).html(originalBtnHtml);
+            let msg = 'Terjadi kesalahan. Silakan coba lagi.';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                msg = xhr.responseJSON.message;
+            }
+            Toast.fire({ icon: 'error', title: msg });
         });
     });
 
@@ -346,9 +433,10 @@
 
             $("#id").val(data.id);
             $("#title").val(data.title);
-            $("#bank_name").val(data.bank_name);
-            $("#account_number").val(data.account_number);
-            $("#account_holder_name").val(data.account_holder_name);
+            togglePaymentType(data.payment_type || 'xendit');
+            $("#bank_name").val(data.bank_name || '');
+            $("#account_number").val(data.account_number || '');
+            $("#account_holder_name").val(data.account_holder_name || '');
 
             let formatedAmount = new Intl.NumberFormat('id-ID').format(data.amount);
             $("#amount").val(formatedAmount);

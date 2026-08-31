@@ -50,7 +50,7 @@
                             <div class="input-group mb-2">
                                 <input type="telp" class="form-control @error('phone') is-invalid @enderror" value="{{ $phone->telp ?? '' }}" name="phone">
                                 <button class="btn btn-outline-primary" type="submit">
-                                    <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-phone"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2" /></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-phone"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2" /></svg>
                                     Simpan
                                 </button>
                             </div>
@@ -60,6 +60,7 @@
             </div>
         </div>
     @endrole
+
     <div class="mt-3">
         <div class="card">
             <div class="card-body border-bottom py-3">
@@ -104,6 +105,7 @@
                             <th>Karyawan</th>
                             <th>Keterangan</th>
                             <th>Jumlah Kasbon</th>
+                            <th>Metode Pencairan</th>
                             <th>Bank / Rekening</th>
                             <th>Status</th>
                             <th>Tanggal Diproses</th>
@@ -141,9 +143,21 @@
                                 </td>
                                 <td>
                                     <span class="fw-bold text-dark">Rp {{ number_format($item->amount, 0, ',', '.') }}</span>
+                                    @if($item->admin_fee > 0)
+                                        <div class="text-danger small" style="font-size: 0.72rem;">Potongan Admin: -Rp {{ number_format($item->admin_fee, 0, ',', '.') }}</div>
+                                    @endif
                                 </td>
                                 <td>
-                                    @if($item->bank_name)
+                                    @if($item->payment_type === 'manual')
+                                        <span class="badge bg-primary text-white">💵 Uang Tunai / Kas</span>
+                                    @else
+                                        <span class="badge bg-azure text-white">⚡ Transfer Bank (Xendit)</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if($item->payment_type === 'manual')
+                                        <span class="text-muted small">— Kas Tunai —</span>
+                                    @elseif($item->bank_name)
                                         <div class="fw-bold text-dark">{{ $item->bank_name }}</div>
                                         <div class="text-muted small font-monospace">{{ $item->account_number }}</div>
                                         <div class="text-muted small">a/n {{ $item->account_holder_name }}</div>
@@ -172,20 +186,20 @@
                                     <div class="btn-list flex-nowrap justify-content-center">
                                         @if(in_array($item->status, ['pending', 'failed']))
                                             @can('approve kasbon')
-                                                <a href="javascript:void(0)" onclick="return approve('{{ $item->id }}')"
+                                                <button type="button" onclick="openApprovalModal('{{ $item->id }}')"
                                                    class="btn btn-action-custom btn-success shadow-sm"
-                                                   title="{{ $item->status === 'failed' ? 'Coba Transfer Ulang' : 'Approve & Transfer' }}">
+                                                   title="{{ $item->status === 'failed' ? 'Coba Transfer Ulang' : 'Approve & Validasi' }}">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>
                                                     {{ $item->status === 'failed' ? 'Coba Lagi' : 'Approve' }}
-                                                </a>
+                                                </button>
                                             @endcan
                                             @can('tolak kasbon')
-                                                <a href="javascript:void(0)" onclick="return rejected('{{ $item->id }}')"
+                                                <button type="button" onclick="rejected('{{ $item->id }}')"
                                                    class="btn btn-action-custom btn-outline-danger"
                                                    title="Tolak Pengajuan Kasbon">
                                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M18 6l-12 12" /><path d="M6 6l12 12" /></svg>
                                                     Tolak
-                                                </a>
+                                                </button>
                                             @endcan
                                         @elseif(in_array($item->status, ['approved', 'transferred']))
                                             <a href="{{ route('cash.advance.invoice', $item->id) }}" target="_blank" class="btn btn-action-custom btn-outline-primary" title="Lihat Bukti Transfer">
@@ -200,7 +214,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center py-5">
+                                <td colspan="10" class="text-center py-5">
                                     <div class="text-muted">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="mb-2 text-muted"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" /><path d="M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z" /></svg>
                                         <div class="fw-semibold">Tidak Ada Pengajuan Kasbon</div>
@@ -219,6 +233,94 @@
                 <ul class="pagination m-0 ms-auto">
                     {{ $cashAdvance->withQueryString()->links('pagination::bootstrap-5') }}
                 </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- MODAL APPROVAL & VALIDASI KASBON                                  -->
+    <!-- ================================================================= -->
+    <div class="modal fade" id="modal-approve-kasbon" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-primary text-white py-3">
+                    <h5 class="modal-title fw-bold mb-0 text-white">Validasi & Approval Kasbon</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <input type="hidden" id="appr_id">
+                    <input type="hidden" id="appr_payment_type">
+
+                    <!-- Profil Karyawan & Pengajuan -->
+                    <div class="p-3 bg-light rounded-3 border mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-muted small">Karyawan:</span>
+                            <span class="fw-bold text-dark fs-5" id="appr_emp_name">-</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="text-muted small">Keperluan / Judul:</span>
+                            <span class="fw-semibold text-dark" id="appr_title">-</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted small">Metode Dipilih Karyawan:</span>
+                            <span id="appr_method_badge">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Rincian Nominal -->
+                    <div class="card border-primary-subtle border mb-3">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between py-1 small">
+                                <span class="text-muted">Jumlah Kasbon Diajukan:</span>
+                                <span class="fw-bold text-dark" id="appr_original_amount">Rp 0</span>
+                            </div>
+                            <div class="d-flex justify-content-between py-1 small" id="appr_admin_row">
+                                <span class="text-muted">• Biaya Admin Transfer (Xendit):</span>
+                                <span class="text-danger fw-semibold" id="appr_admin_fee">-Rp 0</span>
+                            </div>
+                            <div class="d-flex justify-content-between pt-2 mt-2 border-top">
+                                <span class="fw-bold text-dark">Total Dana Bersih:</span>
+                                <span class="fw-bold fs-3 text-primary" id="appr_net_amount">Rp 0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Info Rekening Bank (Jika Xendit) -->
+                    <div id="appr_bank_container" class="mb-3" style="display: none;">
+                        <label class="form-label fw-bold text-dark mb-1 small">Rekening Bank Penerima (Disbursement Xendit):</label>
+                        <div class="p-2 bg-azure-lt border border-azure-subtle rounded small">
+                            <div class="fw-bold text-dark" id="appr_bank_display">-</div>
+                            <div class="text-muted font-monospace" id="appr_acc_num_display">-</div>
+                            <div class="text-muted" id="appr_acc_holder_display">-</div>
+                        </div>
+                    </div>
+
+                    <!-- Status Saldo Finance API -->
+                    <div class="p-2 rounded border mb-3" id="appr_balance_box">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted small" id="appr_balance_label">Sisa Saldo:</span>
+                            <span class="fw-bold" id="appr_balance_value">Rp 0</span>
+                        </div>
+                        <div class="mt-1" id="appr_balance_status"></div>
+                    </div>
+
+                    <!-- Alert Insufficient -->
+                    <div id="appr_alert_insufficient" class="alert alert-danger mb-0 py-2 small" style="display: none;">
+                        <div class="d-flex align-items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 9v4" /><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z" /><path d="M12 16h.01" /></svg>
+                            <span id="appr_alert_msg">Saldo tidak mencukupi untuk pembayaran ini.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer d-flex justify-content-between bg-light py-2">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-success" id="btn-submit-approve" onclick="executeApproveKasbon()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>
+                        Setujui & Transfer Sekarang
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -246,76 +348,158 @@
         }
     });
 
-    function approve(id) {
+    function formatRupiah(number) {
+        return 'Rp ' + Math.round(number || 0).toLocaleString('id-ID');
+    }
+
+    let currentApprovalData = null;
+
+    // Buka Modal Validasi Kasbon
+    function openApprovalModal(id) {
         Swal.fire({
-            title: "Peringatan !",
-            text: "Anda yakin ingin menerima pengajuan kasbon ini?",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#3085d6",
-            cancelButtonColor: "#d33",
-            confirmButtonText: "Iya",
-            cancelButtonText: "Tidak"
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: BASE + '/' + id + '/approve',
-                    method: "PUT",
-                    dataType: "json",
-                    success: function(response) {
-                        console.log(response);
+            title: 'Memeriksa Data & Saldo...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
 
-                        Toast.fire({
-                            icon: response.status,
-                            title: response.message
-                        });
+        $.ajax({
+            url: BASE + '/' + id + '/calculate-transfer',
+            method: 'GET',
+            dataType: 'json',
+            success: function(res) {
+                Swal.close();
+                if (!res.status) {
+                    Toast.fire({ icon: "error", title: res.message || "Gagal memuat rincian kasbon." });
+                    return;
+                }
 
-                        let opened = 0; 
+                currentApprovalData = res.data;
+                let data = currentApprovalData;
 
-                        if (response.wa_link_user) {
-                            const popupUser = window.open(
-                                response.wa_link_user,
-                                'waUser',
-                                'width=600,height=800,top=100,left=100,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
-                            );
-                            if (popupUser) opened++;
-                        }
+                let isXendit = (data.payment_type === 'xendit');
+                let channelActive = isXendit ? (data.channel_status?.xendit ?? data.channel_xendit_enabled ?? true) : (data.channel_status?.manual ?? data.channel_manual_enabled ?? true);
+                let currentBal = isXendit ? (data.balance_xendit || 0) : (data.balance_manual || 0);
+                let requiredBal = isXendit ? data.amount_xendit : data.amount_manual;
+                let isBalanceEnough = currentBal >= requiredBal;
 
-                        if (response.wa_link_default) {
-                            setTimeout(() => {
-                                const popupAdmin = window.open(
-                                    response.wa_link_default,
-                                    'waAdmin',
-                                    'width=600,height=800,top=150,left=750,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
-                                );
-                                if (popupAdmin) opened++;
+                $("#appr_id").val(data.cash_advance_id);
+                $("#appr_payment_type").val(data.payment_type);
+                $("#appr_emp_name").text(data.user_name);
+                $("#appr_title").text(data.title);
+                $("#appr_original_amount").text(formatRupiah(data.amount));
 
-                                if (opened >= 1) {
-                                    setTimeout(() => {
-                                        window.location.reload();
-                                    }, 2000);
-                                }
-                            }, 1500); 
-                        } else {
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 2000);
-                        }
-                    },
-                    error: function(xhr) {
-                        let msg = "Terjadi kesalahan";
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            msg = xhr.responseJSON.message;
-                        }
-                        Toast.fire({
-                            icon: "error",
-                            title: msg
-                        });
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 2500);
-                    }
+                if (isXendit) {
+                    $("#appr_method_badge").html('<span class="badge bg-azure text-white">⚡ Transfer Bank (Xendit)</span>');
+                    $("#appr_admin_row").show();
+                    $("#appr_admin_fee").text('-' + formatRupiah(data.admin_fee));
+                    $("#appr_net_amount").text(formatRupiah(data.amount_xendit));
+
+                    $("#appr_bank_display").text((data.bank_name || '-').toUpperCase());
+                    $("#appr_acc_num_display").text(data.account_number || '-');
+                    $("#appr_acc_holder_display").text("a/n " + (data.account_holder_name || data.user_name));
+                    $("#appr_bank_container").show();
+
+                    $("#appr_balance_label").text("Sisa Saldo Xendit:");
+                    $("#appr_balance_value").attr("class", "fw-bold text-azure").text(formatRupiah(currentBal));
+                } else {
+                    $("#appr_method_badge").html('<span class="badge bg-primary text-white">💵 Uang Tunai / Kas</span>');
+                    $("#appr_admin_row").hide();
+                    $("#appr_net_amount").text(formatRupiah(data.amount_manual));
+                    $("#appr_bank_container").hide();
+
+                    $("#appr_balance_label").text("Sisa Saldo Manual:");
+                    $("#appr_balance_value").attr("class", "fw-bold text-primary").text(formatRupiah(currentBal));
+                }
+
+                // Status Saldo & Channel
+                if (!channelActive) {
+                    $("#appr_balance_status").html(`
+                        <span class="badge bg-secondary-lt text-secondary">Saluran ${isXendit ? 'Xendit' : 'Manual'} Sedang Dinonaktifkan Admin</span>
+                    `);
+                    $("#appr_alert_msg").text(`Saluran pembayaran ${isXendit ? 'Saldo Xendit' : 'Saldo Manual'} sedang dinonaktifkan di Finance API.`);
+                    $("#appr_alert_insufficient").show();
+                    $("#btn-submit-approve").prop('disabled', true);
+                } else if (isBalanceEnough) {
+                    $("#appr_balance_status").html(`
+                        <span class="badge bg-success-lt text-success d-inline-flex align-items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>
+                            Saldo Mencukupi
+                        </span>
+                    `);
+                    $("#appr_alert_insufficient").hide();
+                    $("#btn-submit-approve").prop('disabled', false);
+                } else {
+                    $("#appr_balance_status").html(`
+                        <span class="badge bg-danger-lt text-danger">Kurang ${formatRupiah(requiredBal - currentBal)}</span>
+                    `);
+                    $("#appr_alert_msg").text(`Saldo tidak mencukupi! Sisa: ${formatRupiah(currentBal)}, Dibutuhkan: ${formatRupiah(requiredBal)}.`);
+                    $("#appr_alert_insufficient").show();
+                    $("#btn-submit-approve").prop('disabled', true);
+                }
+
+                $("#modal-approve-kasbon").modal("show");
+            },
+            error: function(xhr) {
+                Swal.close();
+                let msg = "Gagal memeriksa data kasbon.";
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                Toast.fire({ icon: "error", title: msg });
+            }
+        });
+    }
+
+    // Eksekusi Approval
+    function executeApproveKasbon() {
+        if (!currentApprovalData) return;
+        let id = $("#appr_id").val() || currentApprovalData.cash_advance_id;
+        let paymentType = $("#appr_payment_type").val() || currentApprovalData.payment_type || 'xendit';
+
+        $("#btn-submit-approve").prop("disabled", true).html(`
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+            Memproses...
+        `);
+
+        $.ajax({
+            url: BASE + '/' + id + '/approve',
+            method: 'PUT',
+            data: {
+                _token: "{{ csrf_token() }}",
+                transfer_type: paymentType
+            },
+            dataType: 'json',
+            success: function(response) {
+                $("#modal-approve-kasbon").modal("hide");
+
+                Toast.fire({
+                    icon: response.status || "success",
+                    title: response.message
                 });
+
+                if (response.wa_link_user) {
+                    const popupUser = window.open(
+                        response.wa_link_user,
+                        'waUser',
+                        'width=600,height=800,top=100,left=100,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
+                    );
+                }
+
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1800);
+            },
+            error: function(xhr) {
+                $("#btn-submit-approve").prop("disabled", false).html(`
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>
+                    Setujui & Transfer Sekarang
+                `);
+
+                let msg = "Terjadi kesalahan saat memproses kasbon.";
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    msg = xhr.responseJSON.message;
+                }
+                Swal.fire({ icon: "error", title: "Gagal", text: msg });
             }
         });
     }
@@ -328,13 +512,16 @@
             showCancelButton: true,
             confirmButtonColor: "#3085d6",
             cancelButtonColor: "#d33",
-            confirmButtonText: "Iya",
-            cancelButtonText: "Tidak"
+            confirmButtonText: "Iya, Tolak",
+            cancelButtonText: "Batal"
         }).then((result) => {
             if (result.isConfirmed) {
                 $.ajax({
                     url: BASE + '/' + id + '/rejected',
                     method: "PUT",
+                    data: {
+                        _token: "{{ csrf_token() }}"
+                    },
                     dataType: "json",
                     success: function(response) {
                         Toast.fire({
@@ -342,37 +529,17 @@
                             title: response.message
                         });
 
-                        let opened = 0; 
-
                         if (response.wa_link_user) {
-                            const popupUser = window.open(
+                            window.open(
                                 response.wa_link_user,
                                 'waUser',
                                 'width=600,height=800,top=100,left=100,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
                             );
-                            if (popupUser) opened++;
                         }
 
-                        if (response.wa_link_default) {
-                            setTimeout(() => {
-                                const popupAdmin = window.open(
-                                    response.wa_link_default,
-                                    'waAdmin',
-                                    'width=600,height=800,top=150,left=750,toolbar=no,menubar=no,scrollbars=yes,resizable=yes'
-                                );
-                                if (popupAdmin) opened++;
-
-                                if (opened >= 1) {
-                                    setTimeout(() => {
-                                        window.location.reload();
-                                    }, 2000);
-                                }
-                            }, 1500); 
-                        } else {
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 2000);
-                        }
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
                     },
                     error: function() {
                         Toast.fire({

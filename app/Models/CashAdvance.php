@@ -10,13 +10,15 @@ class CashAdvance extends Model
     use HasFactory;
     protected $table = 'cash_advance';
     protected $fillable = [
-        'user_id', 'amount', 'status', 'request_date', 'approved_date', 'title', 'type_id',
+        'user_id', 'amount', 'payment_type', 'admin_fee', 'status', 'request_date', 'approved_date', 'title', 'type_id',
         'bank_name', 'account_number', 'account_holder_name',
         'xendit_disbursement_id', 'xendit_status', 'transfer_at',
     ];
 
     protected $casts = [
         'transfer_at' => 'datetime',
+        'amount'      => 'decimal:2',
+        'admin_fee'   => 'decimal:2',
     ];
 
     public function user()

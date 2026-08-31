@@ -102,32 +102,62 @@ class FinanceApiService
 
             if ($response->successful()) {
                 $json = $response->json();
-                $balanceStr = $json['data']['balance'] ?? '0';
+                $data = $json['data'] ?? [];
+                $balanceStr = $data['balance'] ?? ($data['total_balance'] ?? '0');
                 $balanceVal = (float) $balanceStr;
+                $balanceManual = (float) ($data['balance_manual'] ?? 0);
+                $balanceXendit = (float) ($data['balance_xendit'] ?? 0);
+                $totalBalance  = (float) ($data['total_balance'] ?? ($balanceManual + $balanceXendit > 0 ? $balanceManual + $balanceXendit : $balanceVal));
+
+                $channelStatus = $data['channel_status'] ?? ['manual' => true, 'xendit' => true];
+                $manualEnabled = isset($channelStatus['manual']) ? (bool) $channelStatus['manual'] : true;
+                $xenditEnabled = isset($channelStatus['xendit']) ? (bool) $channelStatus['xendit'] : true;
+
                 return [
-                    'success' => true,
-                    'balance' => $balanceVal,
-                    'message' => 'Berhasil mengambil saldo website.',
-                    'data' => $json['data'] ?? [],
+                    'success'                => true,
+                    'balance'                => $balanceVal,
+                    'balance_manual'         => $balanceManual,
+                    'balance_xendit'         => $balanceXendit,
+                    'total_balance'          => $totalBalance,
+                    'channel_status'         => [
+                        'manual' => $manualEnabled,
+                        'xendit' => $xenditEnabled,
+                    ],
+                    'channel_manual_enabled' => $manualEnabled,
+                    'channel_xendit_enabled' => $xenditEnabled,
+                    'message'                => 'Berhasil mengambil saldo website.',
+                    'data'                   => $data,
                 ];
             }
 
             Log::error('Finance API getBalance Error: ' . $response->body());
 
             return [
-                'success' => false,
-                'balance' => 0.0,
-                'message' => 'Gagal mengambil saldo dari API Finance: ' . ($response->json('message') ?? $response->status()),
-                'data' => null,
+                'success'                => false,
+                'balance'                => 0.0,
+                'balance_manual'         => 0.0,
+                'balance_xendit'         => 0.0,
+                'total_balance'          => 0.0,
+                'channel_status'         => ['manual' => false, 'xendit' => false],
+                'channel_manual_enabled' => false,
+                'channel_xendit_enabled' => false,
+                'message'                => 'Gagal mengambil saldo dari API Finance: ' . ($response->json('message') ?? $response->status()),
+                'data'                   => null,
             ];
         } catch (Exception $e) {
             Log::error('Finance API getBalance Exception: ' . $e->getMessage());
 
             return [
-                'success' => false,
-                'balance' => 0.0,
-                'message' => 'Koneksi ke API Finance gagal: ' . $e->getMessage(),
-                'data' => null,
+                'success'                => false,
+                'balance'                => 0.0,
+                'balance_manual'         => 0.0,
+                'balance_xendit'         => 0.0,
+                'total_balance'          => 0.0,
+                'channel_status'         => ['manual' => false, 'xendit' => false],
+                'channel_manual_enabled' => false,
+                'channel_xendit_enabled' => false,
+                'message'                => 'Koneksi ke API Finance gagal: ' . $e->getMessage(),
+                'data'                   => null,
             ];
         }
     }
@@ -270,6 +300,7 @@ class FinanceApiService
      * @param string $description
      * @param string $category
      * @param string $note
+     * @param string $balanceType 'manual', 'xendit', atau 'auto'
      * @return array ['success' => bool, 'message' => string, 'data' => ?array]
      */
     public function deductBalance(
@@ -277,7 +308,8 @@ class FinanceApiService
         string $referenceId,
         string $description,
         string $category = 'kasbon',
-        string $note = ''
+        string $note = '',
+        string $balanceType = 'xendit'
     ): array {
         if (!$this->isConfigured()) {
             return [
@@ -289,11 +321,12 @@ class FinanceApiService
 
         $path = '/api/v1/balance/deduct';
         $payload = [
-            'amount' => (float) $amount,
+            'amount'       => (float) $amount,
+            'balance_type' => $balanceType,
             'reference_id' => $referenceId,
-            'description' => $description,
-            'category' => $category,
-            'note' => $note,
+            'description'  => $description,
+            'category'     => $category,
+            'note'         => $note,
         ];
 
         $jsonPayload = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -348,13 +381,15 @@ class FinanceApiService
      * @param string $referenceId   ID referensi transfer yang gagal
      * @param string $description   Keterangan refund
      * @param string $reason        Alasan pengembalian (misal: INVALID_DESTINATION)
+     * @param string $balanceType   'manual' atau 'xendit'
      * @return array ['success' => bool, 'message' => string, 'data' => ?array]
      */
     public function refundBalance(
         float $amount,
         string $referenceId,
         string $description,
-        string $reason = 'Transfer gagal'
+        string $reason = 'Transfer gagal',
+        string $balanceType = 'xendit'
     ): array {
         if (!$this->isConfigured()) {
             return [
@@ -368,6 +403,7 @@ class FinanceApiService
         $path    = '/api/v1/balance/refund';
         $payload = [
             'amount'       => (float) $amount,
+            'balance_type' => $balanceType,
             'reference_id' => 'REFUND-' . $referenceId,
             'description'  => $description,
             'reason'       => $reason,

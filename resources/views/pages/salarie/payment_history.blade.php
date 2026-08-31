@@ -235,11 +235,24 @@
                                 </div>
                             </td>
                             <td>
-                                <div class="d-flex align-items-center gap-1">
-                                    <span class="badge bg-dark-lt text-dark fw-semibold">{{ $payment->bank_name ?? '-' }}</span>
-                                    <span class="fw-medium text-dark">{{ $payment->account_number ?? '-' }}</span>
-                                </div>
-                                <div class="text-muted small">a/n {{ $payment->account_holder_name ?? '-' }}</div>
+                                @if(($payment->payment_type ?? 'xendit') === 'manual')
+                                    <div class="d-flex align-items-center gap-1 mb-1">
+                                        <span class="badge bg-primary text-white fw-bold px-2 py-1">💵 Tunai / Kas</span>
+                                    </div>
+                                    <div class="text-muted small">Pembayaran Kas Langsung</div>
+                                    <div class="mt-1">
+                                        <span class="badge bg-primary-lt text-primary" style="font-size: 0.68rem;">🏢 Saldo Manual</span>
+                                    </div>
+                                @else
+                                    <div class="d-flex align-items-center gap-1 mb-1">
+                                        <span class="badge bg-dark-lt text-dark fw-semibold">{{ $payment->bank_name ?? '-' }}</span>
+                                        <span class="fw-medium text-dark">{{ $payment->account_number ?? '-' }}</span>
+                                    </div>
+                                    <div class="text-muted small">a/n {{ $payment->account_holder_name ?? '-' }}</div>
+                                    <div class="mt-1">
+                                        <span class="badge bg-azure-lt text-azure" style="font-size: 0.68rem;">⚡ Saldo Xendit</span>
+                                    </div>
+                                @endif
                             </td>
                             <td>
                                 @if ($payment->status === 'transferred')
@@ -332,9 +345,9 @@
                     </div>
                     <div class="col-md-6">
                         <div class="card bg-light-lt border-0 p-3 rounded-3">
-                            <div class="text-muted small mb-1">Periode Pembayaran</div>
+                            <div class="text-muted small mb-1">Periode & Operator</div>
                             <div class="fw-bold fs-4 text-primary" id="modal-period">-</div>
-                            <div class="text-muted small" id="modal-transferred-by">Diproses oleh: -</div>
+                            <div class="text-muted small" id="modal-transferred-by">-</div>
                         </div>
                     </div>
                 </div>
@@ -360,8 +373,10 @@
                 </div>
 
                 <div class="card border rounded-3 p-3 mb-3 bg-light-lt">
-                    <h4 class="card-title text-dark mb-2">Informasi Rekening Tujuan & Xendit:</h4>
-                    <div class="row g-2">
+                    <h4 class="card-title text-dark mb-2" id="modal-method-title">Informasi Rekening Tujuan & Xendit:</h4>
+                    
+                    {{-- Grid Informasi Bank Xendit --}}
+                    <div class="row g-2" id="modal-bank-grid">
                         <div class="col-6">
                             <span class="text-muted small d-block">Bank & Nomor Rekening:</span>
                             <span class="fw-bold text-dark" id="modal-bank-info">-</span>
@@ -377,6 +392,21 @@
                         <div class="col-6 mt-2">
                             <span class="text-muted small d-block">External ID (Xendit):</span>
                             <code class="small text-muted" id="modal-external-id">-</code>
+                        </div>
+                    </div>
+
+                    {{-- Box Informasi Kas Tunai / Manual --}}
+                    <div id="modal-cash-grid" style="display: none;">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="avatar avatar-sm bg-primary text-white rounded-circle">💵</span>
+                            <div>
+                                <div class="fw-bold text-primary">Pembayaran Tunai / Kas Operasional</div>
+                                <div class="text-muted small">Pembayaran langsung diproses secara manual dan memotong Saldo Manual Web Finance.</div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <span class="text-muted small d-block">Status Pembayaran:</span>
+                            <span class="badge badge-status-transferred px-2 py-1 fw-bold">✓ Berhasil Dibayarkan (Tunai)</span>
                         </div>
                     </div>
                 </div>
@@ -406,19 +436,30 @@
         document.getElementById('modal-cash-advance').innerText = '- ' + formatRupiah(payment.total_cash_advance);
         document.getElementById('modal-net-salary').innerText = formatRupiah(payment.net_salary);
 
-        document.getElementById('modal-bank-info').innerText = (payment.bank_name || '-') + ' - ' + (payment.account_number || '-');
-        document.getElementById('modal-holder-name').innerText = payment.account_holder_name || '-';
-        document.getElementById('modal-external-id').innerText = payment.xendit_external_id || '-';
-
-        let badgeHtml = '';
-        if (payment.status === 'transferred') {
-            badgeHtml = '<span class="badge badge-status-transferred px-2 py-1 fw-bold">✓ Berhasil Ditransfer</span>';
-        } else if (payment.status === 'pending') {
-            badgeHtml = '<span class="badge badge-status-pending px-2 py-1 fw-bold">⏳ Pending (Diproses)</span>';
+        let isManual = (payment.payment_type === 'manual');
+        if (isManual) {
+            document.getElementById('modal-method-title').innerText = 'Metode Pembayaran (Saldo Manual):';
+            document.getElementById('modal-bank-grid').style.display = 'none';
+            document.getElementById('modal-cash-grid').style.display = 'block';
         } else {
-            badgeHtml = '<span class="badge badge-status-failed px-2 py-1 fw-bold">✗ Gagal (Saldo Direfund)</span>';
+            document.getElementById('modal-method-title').innerText = 'Informasi Rekening Tujuan & Xendit:';
+            document.getElementById('modal-bank-grid').style.display = 'flex';
+            document.getElementById('modal-cash-grid').style.display = 'none';
+
+            document.getElementById('modal-bank-info').innerText = (payment.bank_name || '-') + ' - ' + (payment.account_number || '-');
+            document.getElementById('modal-holder-name').innerText = payment.account_holder_name || '-';
+            document.getElementById('modal-external-id').innerText = payment.xendit_external_id || '-';
+
+            let badgeHtml = '';
+            if (payment.status === 'transferred') {
+                badgeHtml = '<span class="badge badge-status-transferred px-2 py-1 fw-bold">✓ Berhasil Ditransfer</span>';
+            } else if (payment.status === 'pending') {
+                badgeHtml = '<span class="badge badge-status-pending px-2 py-1 fw-bold">⏳ Pending (Diproses)</span>';
+            } else {
+                badgeHtml = '<span class="badge badge-status-failed px-2 py-1 fw-bold">✗ Gagal (Saldo Direfund)</span>';
+            }
+            document.getElementById('modal-status-badge').innerHTML = badgeHtml;
         }
-        document.getElementById('modal-status-badge').innerHTML = badgeHtml;
 
         let modal = new bootstrap.Modal(document.getElementById('modal-payment-detail'));
         modal.show();

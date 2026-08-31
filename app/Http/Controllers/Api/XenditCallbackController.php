@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\CashAdvanceApprovedMail;
+use App\Mail\SalaryTransferredMail;
 use App\Models\CashAdvance;
 use App\Models\Salary;
+use App\Models\Setting;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class XenditCallbackController extends Controller
 {
@@ -99,14 +103,18 @@ class XenditCallbackController extends Controller
                         ]);
 
                         // ── Update status salary_payment ──
-                        \App\Models\SalaryPayment::where('xendit_external_id', $externalId)
+                        $payment = \App\Models\SalaryPayment::where('xendit_external_id', $externalId)
                             ->orWhere('xendit_disbursement_id', $disbursementId)
-                            ->update([
+                            ->first();
+
+                        if ($payment) {
+                            $payment->update([
                                 'status'                 => 'transferred',
                                 'xendit_status'          => 'COMPLETED',
                                 'xendit_disbursement_id' => $disbursementId,
                                 'transfer_at'            => Carbon::now(),
                             ]);
+                        }
 
                         // ── Hitung ulang angka gaji untuk pesan WA ──
                         $user             = $salary->user;
@@ -129,8 +137,36 @@ class XenditCallbackController extends Controller
                         $accountHolderName = $user->account_holder_name ?? $user->name ?? '-';
                         $phoneUser         = $user->phone ? \App\Services\MekariQontakService::formatPhone($user->phone) : null;
 
-                        // ── Kirim WA ke karyawan ──
-                        if ($phoneUser) {
+                        // ── 1. Kirim Email Slip Gaji ke Karyawan ──
+                        if (Setting::get('notify_salary_email', '1') == '1' && !empty($user->email)) {
+                            try {
+                                $invoiceUrl = $payment ? route('salary.payment.invoice', $payment->id) : null;
+
+                                Mail::to($user->email)->send(new SalaryTransferredMail(
+                                    employee:          $user,
+                                    monthYearStr:      $monthYearStr,
+                                    baseSalary:        $baseSalary,
+                                    totalAllowance:    $totalAllowance,
+                                    totalCashAdvance:  $totalCashAdvance,
+                                    netSalary:         $netSalary,
+                                    bankName:          $bankName,
+                                    accountNumber:     $accountNumber,
+                                    accountHolderName: $accountHolderName,
+                                    dateStr:           $dateStr,
+                                    invoiceUrl:        $invoiceUrl,
+                                    paymentType:       $payment->payment_type ?? 'xendit'
+                                ));
+                                Log::info('[Xendit Webhook] Email notification sent to employee after COMPLETED', [
+                                    'employee' => $user->name,
+                                    'email'    => $user->email,
+                                ]);
+                            } catch (\Throwable $th) {
+                                Log::warning('[Xendit Webhook] Gagal kirim email transfer gaji: ' . $th->getMessage());
+                            }
+                        }
+
+                        // ── 2. Kirim WA ke karyawan ──
+                        if (Setting::get('notify_salary_wa', '1') == '1' && $phoneUser) {
                             $qontak = app(\App\Services\MekariQontakService::class);
                             if ($qontak->isConfigured()) {
                                 $qontak->notifySalaryTransfer(
@@ -181,7 +217,8 @@ class XenditCallbackController extends Controller
                                     amount:      $refundAmount,
                                     referenceId: $externalId,
                                     description: 'Refund gaji ' . ($salary->user->name ?? '') . ' — transfer gagal (' . $failureCode . ')',
-                                    reason:      $failureCode
+                                    reason:      $failureCode,
+                                    balanceType: $salaryPaymentRecord->payment_type ?? 'xendit'
                                 );
 
                                 Log::info('[Xendit Webhook] Refund saldo gaji', [
@@ -246,19 +283,22 @@ class XenditCallbackController extends Controller
             $financeApi  = app(\App\Services\FinanceApiService::class);
 
             if ($financeApi->isConfigured()) {
-                $refundAmount = (float) $cashAdvance->amount;
+                $adminFee     = ($cashAdvance->payment_type === 'xendit') ? (float) ($cashAdvance->admin_fee ?? Setting::get('admin_fee_disbursement', 0)) : 0.0;
+                $refundAmount = max(0, (float) $cashAdvance->amount - $adminFee);
 
                 if ($refundAmount > 0) {
                     $refundResult = $financeApi->refundBalance(
                         amount:      $refundAmount,
                         referenceId: $externalId ?? ('KB-' . $cashAdvance->id),
                         description: 'Refund kasbon ' . ($cashAdvance->user->name ?? '') . ' — transfer gagal (' . $failureCode . ')',
-                        reason:      $failureCode
+                        reason:      $failureCode,
+                        balanceType: $cashAdvance->payment_type ?? 'xendit'
                     );
 
                     Log::info('[Xendit Webhook] Refund saldo kasbon', [
                         'cash_advance_id' => $cashAdvance->id,
                         'amount'          => $refundAmount,
+                        'balance_type'    => $cashAdvance->payment_type ?? 'xendit',
                         'refund_success'  => $refundResult['success'],
                         'refund_msg'      => $refundResult['message'],
                     ]);
@@ -266,20 +306,35 @@ class XenditCallbackController extends Controller
             }
         }
 
-        // ── Kirim WA ke karyawan saat COMPLETED ──
+        // ── Kirim Notifikasi Email & WA ke karyawan saat COMPLETED ──
         if ($status === 'COMPLETED') {
             $user      = $cashAdvance->user ?? \App\Models\User::find($cashAdvance->user_id);
             $phoneUser = $user?->phone ? \App\Services\MekariQontakService::formatPhone($user->phone) : null;
 
-            if ($phoneUser) {
+            try {
+                $invoiceUrl = route('cash.advance.invoice', $cashAdvance->id);
+            } catch (\Exception $e) {
+                $invoiceUrl = url('/cash-advance/' . $cashAdvance->id . '/invoice');
+            }
+
+            // 1. Notifikasi Email ke Karyawan
+            if (Setting::get('notify_cash_advance_email', '1') == '1' && !empty($user?->email)) {
+                try {
+                    Mail::to($user->email)->send(new CashAdvanceApprovedMail($cashAdvance, $user, true, $invoiceUrl));
+                    Log::info('[Xendit Webhook] Email notification sent to employee after kasbon COMPLETED', [
+                        'cash_advance_id' => $cashAdvance->id,
+                        'employee'        => $user->name,
+                        'email'           => $user->email,
+                    ]);
+                } catch (\Throwable $th) {
+                    Log::warning('[Xendit Webhook] Gagal kirim email approval kasbon: ' . $th->getMessage());
+                }
+            }
+
+            // 2. Notifikasi WhatsApp ke Karyawan
+            if (Setting::get('notify_cash_advance_wa', '1') == '1' && $phoneUser) {
                 $qontak = app(\App\Services\MekariQontakService::class);
                 if ($qontak->isConfigured()) {
-                    try {
-                        $invoiceUrl = route('cash.advance.invoice', $cashAdvance->id);
-                    } catch (\Exception $e) {
-                        $invoiceUrl = url('/cash-advance/' . $cashAdvance->id . '/invoice');
-                    }
-
                     $qontak->notifyEmployeeApproval(
                         employeeName:      $user->name,
                         employeePhone:     $phoneUser,
