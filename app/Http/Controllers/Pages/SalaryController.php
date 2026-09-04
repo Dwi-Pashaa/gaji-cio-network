@@ -391,9 +391,9 @@ class SalaryController extends Controller
         $adminFee         = (float) Setting::get('admin_fee_disbursement', 0);
         $subtotalIncome   = $baseSalary + $totalAllowance;
         $netSalaryXendit  = max(0, $subtotalIncome - $totalCashAdvance - $adminFee);
-        $netSalaryManual  = max(0, $subtotalIncome - $totalCashAdvance);
-        $totalDeductions  = $totalCashAdvance;
-        $netSalary        = $netSalaryManual;
+        $netSalaryManual  = max(0, $subtotalIncome - $totalCashAdvance - $adminFee);
+        $totalDeductions  = $totalCashAdvance + $adminFee;
+        $netSalary        = $netSalaryXendit;
 
         // Ambil saldo website saat ini dari Finance API
         $financeApi     = app(FinanceApiService::class);
@@ -483,8 +483,8 @@ class SalaryController extends Controller
             ->whereYear('request_date', $year)
             ->sum('amount');
 
-        // Jika manual, biaya admin Xendit dihilangkan (0)
-        $adminFee       = $transferType === 'xendit' ? (float) Setting::get('admin_fee_disbursement', 0) : 0.0;
+        // Biaya admin berlaku untuk kedua tipe pembayaran (xendit & manual)
+        $adminFee       = (float) Setting::get('admin_fee_disbursement', 0);
         $subtotalIncome = $baseSalary + $totalAllowance;
         $netSalary      = max(0, $subtotalIncome - $totalCashAdvance - $adminFee);
 

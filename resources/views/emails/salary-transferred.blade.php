@@ -85,6 +85,15 @@
                                     <td style="padding: 6px 0; font-size: 13px; color: #64748b;">(-) Potongan Kasbon</td>
                                     <td style="padding: 6px 0; font-size: 13px; color: #dc2626; font-weight: 600; text-align: right;">- Rp {{ number_format($totalCashAdvance, 0, ',', '.') }}</td>
                                 </tr>
+                                @php
+                                    $adminFeeDeduction = ($baseSalary + $totalAllowance) - $totalCashAdvance - $netSalary;
+                                @endphp
+                                @if($adminFeeDeduction > 0)
+                                <tr>
+                                    <td style="padding: 6px 0; font-size: 13px; color: #64748b;">(-) Potongan Biaya Admin</td>
+                                    <td style="padding: 6px 0; font-size: 13px; color: #dc2626; font-weight: 600; text-align: right;">- Rp {{ number_format($adminFeeDeduction, 0, ',', '.') }}</td>
+                                </tr>
+                                @endif
                                 <tr>
                                     <td colspan="2" style="border-top: 1px dashed #cbd5e1; padding-top: 8px; margin-top: 4px;"></td>
                                 </tr>

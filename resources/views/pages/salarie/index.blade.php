@@ -844,7 +844,7 @@
                                         </div>
 
                                         <p class="text-muted small mb-2" style="font-size: 0.775rem;">
-                                            Pencatatan transfer bank manual / uang tunai kas operasional <strong>tanpa biaya admin gateway</strong> dan memotong Saldo Manual di Finance API.
+                                            Pencatatan transfer bank manual / uang tunai kas operasional dengan potongan biaya admin dan memotong Saldo Manual di Finance API.
                                         </p>
 
                                         <div id="tf_badge_status_manual">
@@ -1842,7 +1842,7 @@
                     }
 
                     // Tentukan pilihan awal: pilih channel yang AKTIF & SALDO CUKUP
-                    let estXenditNet = (d.net_salary || 0) + (d.admin_fee || 0);
+                    let estXenditNet = (d.net_salary || 0);
                     let estManualNet = (d.net_salary || 0);
 
                     let initType = 'xendit';
@@ -1895,8 +1895,8 @@
                 $("#tf_card_xendit").removeClass("selected");
             }
 
-            // Hitung kalkulasi berdasarkan tipe transfer terpilih
-            let adminFee = (type === 'xendit') ? (transferData.admin_fee || 0) : 0;
+            // Hitung kalkulasi berdasarkan tipe transfer terpilih (keduanya dikenakan potongan biaya admin)
+            let adminFee = transferData.admin_fee || 0;
             let totalDeductions = (transferData.total_cash_advance || 0) + adminFee;
             let netSalary = Math.max(0, transferData.subtotal_income - totalDeductions);
 
@@ -1915,10 +1915,10 @@
                 $("#tf_cash_container").hide();
             } else {
                 $("#tf_s2_method_badge").attr("class", "badge bg-primary text-white px-2 py-1").text("Saldo Manual (Kas / Pembayaran Tunai)");
-                $("#tf_admin_fee_label").text("• Biaya Admin Transfer:");
-                $("#tf_admin_fee").text("Rp 0 (Gratis / Kas)");
+                $("#tf_admin_fee_label").text("• Biaya Admin Transfer (Manual):");
+                $("#tf_admin_fee").text('-' + formatRupiah(adminFee));
                 $("#tf_admin_fee_row").show();
-                $("#tf_net_salary_sub").text("(Gaji Pokok + Tunjangan - Total Kasbon)");
+                $("#tf_net_salary_sub").text("(Gaji Pokok + Tunjangan - Total Kasbon - Biaya Admin)");
                 $("#tf_bank_container").hide();
                 $("#tf_cash_container").show();
             }
@@ -1926,9 +1926,9 @@
             $("#tf_total_deductions").text('-' + formatRupiah(totalDeductions));
             $("#tf_net_salary").text(formatRupiah(netSalary));
 
-            // Evaluasi kecukupan saldo masing-masing kantong
+            // Evaluasi kecukupan saldo masing-masing kantong (keduanya memperhitungkan admin fee)
             let xenditNet = Math.max(0, transferData.subtotal_income - (transferData.total_cash_advance || 0) - (transferData.admin_fee || 0));
-            let manualNet = Math.max(0, transferData.subtotal_income - (transferData.total_cash_advance || 0));
+            let manualNet = Math.max(0, transferData.subtotal_income - (transferData.total_cash_advance || 0) - (transferData.admin_fee || 0));
 
             let xenditEnough = (transferData.balance_xendit || 0) >= xenditNet;
             let manualEnough = (transferData.balance_manual || 0) >= manualNet;
@@ -2157,7 +2157,7 @@
                 $("#tf_rev_bank_row").hide();
                 $("#tf_rev_cash_row").show();
 
-                $("#tf_rev_note_text").html("Status pembayaran akan <strong>langsung ditandai BERHASIL (Transferred)</strong> sebagai pembayaran tunai/kas tanpa API Xendit & tanpa biaya admin, dan <strong>Saldo Manual</strong> Web Finance akan dipotong sebesar nominal gaji.");
+                $("#tf_rev_note_text").html(`Status pembayaran akan <strong>langsung ditandai BERHASIL (Transferred)</strong> sebagai pembayaran tunai/kas dengan potongan biaya admin, dan <strong>Saldo Manual</strong> Web Finance akan dipotong sebesar nominal gaji bersih (<strong>${formatRupiah(netSal)}</strong>).`);
             }
         }
 

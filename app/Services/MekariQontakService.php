@@ -246,12 +246,18 @@ class MekariQontakService
             return ['success' => false, 'message' => 'Template ID Gaji belum diatur di .env'];
         }
 
+        $adminFeeDeduction = ($baseSalary + $totalAllowance) - $totalCashAdvance - $netSalary;
+        $breakdownDetail   = "Gaji Pokok: Rp " . number_format($baseSalary, 0, ',', '.') . " | Tunjangan: +Rp " . number_format($totalAllowance, 0, ',', '.') . " | Potongan Kasbon: -Rp " . number_format($totalCashAdvance, 0, ',', '.');
+        if ($adminFeeDeduction > 0) {
+            $breakdownDetail .= " | Potongan Admin: -Rp " . number_format($adminFeeDeduction, 0, ',', '.');
+        }
+
         $params = [
             $employeeName,
             "Gaji Bulan {$monthYearStr}",
             'Rp ' . number_format($netSalary, 0, ',', '.'),
             "{$bankName} ({$accountNumber} a/n {$accountHolderName})",
-            "Gaji Pokok: Rp " . number_format($baseSalary, 0, ',', '.') . " | Tunjangan: +Rp " . number_format($totalAllowance, 0, ',', '.') . " | Potongan Kasbon: -Rp " . number_format($totalCashAdvance, 0, ',', '.'),
+            $breakdownDetail,
             $dateStr,
         ];
 

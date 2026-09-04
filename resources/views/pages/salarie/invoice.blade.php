@@ -338,6 +338,15 @@
                             @endif
                         </td>
                     </tr>
+                    @php
+                        $adminFeeDeduction = ($payment->base_salary + $payment->total_allowance) - $payment->total_cash_advance - $payment->net_salary;
+                    @endphp
+                    @if($adminFeeDeduction > 0)
+                        <tr>
+                            <td>Potongan Biaya Admin</td>
+                            <td class="text-right text-danger">-Rp {{ number_format($adminFeeDeduction, 0, ',', '.') }}</td>
+                        </tr>
+                    @endif
                     <tr class="row-total">
                         <td>Total Gaji Bersih (Take Home Pay)</td>
                         <td class="text-right text-success" style="font-size: 15px;">Rp {{ number_format($payment->net_salary, 0, ',', '.') }}</td>

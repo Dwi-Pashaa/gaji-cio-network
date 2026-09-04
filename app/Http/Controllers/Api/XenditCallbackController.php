@@ -128,7 +128,8 @@ class XenditCallbackController extends Controller
                             ->whereYear('request_date', $now->year)
                             ->sum('amount');
 
-                        $netSalary        = $baseSalary + $totalAllowance - $totalCashAdvance;
+                        $adminFee         = (float) Setting::get('admin_fee_disbursement', 0);
+                        $netSalary        = $payment ? (float) $payment->net_salary : max(0, $baseSalary + $totalAllowance - $totalCashAdvance - $adminFee);
                         $monthYearStr     = $now->translatedFormat('F Y');
                         $dateStr          = $now->translatedFormat('l, d F Y - H:i');
 
