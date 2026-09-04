@@ -50,7 +50,7 @@ class CashAdvanceController extends Controller
         $banks          = XenditDisbursementService::availableBanks();
         $user           = Auth::user();
         $maxCashAdvance = (float) Setting::get('max_cash_advance_amount', 0);
-        $adminFee       = (float) Setting::get('admin_fee_disbursement', 0);
+        $adminFee       = (float) Setting::get('admin_fee_disbursement', 2500);
 
         return view("pages.cash-advance.index", compact("cashAdvance", "banks", "user", "maxCashAdvance", "adminFee"));
     }
@@ -406,7 +406,7 @@ class CashAdvanceController extends Controller
         $user           = $cashAdvance->user;
         $amount         = (float) $cashAdvance->amount;
         $paymentType    = $cashAdvance->payment_type ?: 'xendit';
-        $adminFee       = ($paymentType === 'xendit') ? (float) ($cashAdvance->admin_fee > 0 ? $cashAdvance->admin_fee : Setting::get('admin_fee_disbursement', 0)) : 0.0;
+        $adminFee       = ($paymentType === 'xendit') ? (float) ($cashAdvance->admin_fee > 0 ? $cashAdvance->admin_fee : Setting::get('admin_fee_disbursement', 2500)) : 0.0;
         $amountXendit   = max(0, $amount - $adminFee);
         $amountManual   = $amount;
 
@@ -472,7 +472,7 @@ class CashAdvanceController extends Controller
         $xendit         = app(XenditDisbursementService::class);
         $user           = $cashAdvance->user ?? User::find($cashAdvance->user_id);
         $amount         = (float) $cashAdvance->amount;
-        $adminFee       = ($transferType === 'xendit') ? (float) ($cashAdvance->admin_fee > 0 ? $cashAdvance->admin_fee : Setting::get('admin_fee_disbursement', 0)) : 0.0;
+        $adminFee       = ($transferType === 'xendit') ? (float) ($cashAdvance->admin_fee > 0 ? $cashAdvance->admin_fee : Setting::get('admin_fee_disbursement', 2500)) : 0.0;
         $transferAmount = max(0, $amount - $adminFee);
 
         if ($transferAmount <= 0) {

@@ -24,7 +24,7 @@ class Setting extends Model
     {
         $setting = static::where('key', $key)->first();
 
-        return $setting !== null ? $setting->value : $default;
+        return ($setting !== null && $setting->value !== null && $setting->value !== '') ? $setting->value : $default;
     }
 
     /**

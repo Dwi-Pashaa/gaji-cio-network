@@ -388,7 +388,7 @@ class SalaryController extends Controller
             ->get();
 
         $totalCashAdvance = (float) $cashAdvances->sum('amount');
-        $adminFee         = (float) Setting::get('admin_fee_disbursement', 0);
+        $adminFee         = (float) Setting::get('admin_fee_disbursement', 2500);
         $subtotalIncome   = $baseSalary + $totalAllowance;
         $netSalaryXendit  = max(0, $subtotalIncome - $totalCashAdvance - $adminFee);
         $netSalaryManual  = max(0, $subtotalIncome - $totalCashAdvance - $adminFee);
@@ -484,7 +484,7 @@ class SalaryController extends Controller
             ->sum('amount');
 
         // Biaya admin berlaku untuk kedua tipe pembayaran (xendit & manual)
-        $adminFee       = (float) Setting::get('admin_fee_disbursement', 0);
+        $adminFee       = (float) Setting::get('admin_fee_disbursement', 2500);
         $subtotalIncome = $baseSalary + $totalAllowance;
         $netSalary      = max(0, $subtotalIncome - $totalCashAdvance - $adminFee);
 

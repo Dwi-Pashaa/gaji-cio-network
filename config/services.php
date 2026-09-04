@@ -45,6 +45,11 @@ return [
         'base_url'      => 'https://api.xendit.co',
         'forwarders'    => [
             [
+                'name'   => 'Kasir',
+                'prefix' => env('XENDIT_FORWARD_KASIR_PREFIX', 'KASIR-'),
+                'url'    => env('XENDIT_FORWARD_KASIR_URL', ''),
+            ],
+            [
                 'name'   => 'Investor',
                 'prefix' => env('XENDIT_FORWARD_INVESTOR_PREFIX', 'INV-'),
                 'url'    => env('XENDIT_FORWARD_INVESTOR_URL', ''),

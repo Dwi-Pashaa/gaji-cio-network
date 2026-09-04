@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Mail;
 class XenditCallbackController extends Controller
 {
     /**
-     * Webhook Callback dari Xendit untuk status Disbursement.
+     * Webhook Callback dari Xendit untuk status Disbursement (Kirim Uang / Pengeluaran).
      * Berfungsi sebagai Router Central untuk multi-website.
      * POST /api/xendit/disbursement-callback
      */
@@ -41,43 +41,9 @@ class XenditCallbackController extends Controller
         // ─────────────────────────────────────────────────────────────────
         // 1. CEK APAKAH INI TRANSAKSI WEBSITE LAIN (FORWARDING)
         // ─────────────────────────────────────────────────────────────────
-        $forwarders = config('services.xendit.forwarders', []);
-        foreach ($forwarders as $target) {
-            $prefix = $target['prefix'] ?? '';
-            $url    = $target['url'] ?? '';
-
-            if (!empty($prefix) && !empty($url) && $externalId && str_starts_with($externalId, $prefix)) {
-                Log::info("[Xendit Webhook Router] Forwarding to external website [{$prefix}] -> {$url}");
-
-                try {
-                    $forwardHeaders = ['Content-Type' => 'application/json'];
-                    if ($token = $request->header('x-callback-token')) {
-                        $forwardHeaders['x-callback-token'] = $token;
-                    }
-
-                    $fwdResponse = Http::withHeaders($forwardHeaders)
-                        ->timeout(15)
-                        ->post($url, $payload);
-
-                    Log::info("[Xendit Webhook Router] Forwarded successfully [{$prefix}]", [
-                        'target_url'  => $url,
-                        'status_code' => $fwdResponse->status(),
-                    ]);
-
-                    return response()->json([
-                        'status'           => 'forwarded',
-                        'forward_target'   => $prefix,
-                        'forward_response' => $fwdResponse->json() ?? $fwdResponse->body(),
-                    ], 200);
-                } catch (\Exception $e) {
-                    Log::error("[Xendit Webhook Router] Failed to forward [{$prefix}] -> {$url}: " . $e->getMessage());
-
-                    return response()->json([
-                        'status'  => 'forward_error',
-                        'message' => 'Failed to forward to target website: ' . $e->getMessage(),
-                    ], 500);
-                }
-            }
+        $fwdResponse = $this->forwardIfTargetMatched($request, $payload, $externalId);
+        if ($fwdResponse) {
+            return $fwdResponse;
         }
 
         // ─────────────────────────────────────────────────────────────────
@@ -128,7 +94,7 @@ class XenditCallbackController extends Controller
                             ->whereYear('request_date', $now->year)
                             ->sum('amount');
 
-                        $adminFee         = (float) Setting::get('admin_fee_disbursement', 0);
+                        $adminFee         = (float) Setting::get('admin_fee_disbursement', 2500);
                         $netSalary        = $payment ? (float) $payment->net_salary : max(0, $baseSalary + $totalAllowance - $totalCashAdvance - $adminFee);
                         $monthYearStr     = $now->translatedFormat('F Y');
                         $dateStr          = $now->translatedFormat('l, d F Y - H:i');
@@ -363,4 +329,104 @@ class XenditCallbackController extends Controller
             'message' => 'Callback processed locally for CashAdvance #' . $cashAdvance->id,
         ], 200);
     }
+
+    /**
+     * Webhook Callback dari Xendit untuk status Uang Masuk / Payment Gateway.
+     * Melayani transaksi: Invoices (Faktur), Virtual Accounts, QR Codes (QRIS), E-Wallets, Retail Outlets.
+     * Berfungsi sebagai Router Central untuk Web Kasir / Toko dan website lainnya.
+     * POST /api/xendit/payment-callback
+     */
+    public function handlePayment(Request $request)
+    {
+        $payload    = $request->all();
+        $externalId = $payload['external_id']
+            ?? $payload['data']['external_id']
+            ?? $payload['data']['reference_id']
+            ?? $payload['reference_id']
+            ?? null;
+        $id         = $payload['id'] ?? $payload['data']['id'] ?? null;
+        $status     = strtoupper($payload['status'] ?? $payload['data']['status'] ?? $payload['event'] ?? '');
+
+        Log::info('[Xendit Webhook] Received payment / money-in callback', [
+            'id'          => $id,
+            'external_id' => $externalId,
+            'status'      => $status,
+            'event'       => $payload['event'] ?? null,
+        ]);
+
+        if (!$id && !$externalId) {
+            return response()->json(['message' => 'Invalid payload'], 400);
+        }
+
+        // 1. Cek apakah ada forwarding website yang cocok (misal: KASIR-, INV-, OPS-, OTHER-)
+        $fwdResponse = $this->forwardIfTargetMatched($request, $payload, $externalId);
+        if ($fwdResponse) {
+            return $fwdResponse;
+        }
+
+        Log::info('[Xendit Webhook] No forwarder matched for payment callback', [
+            'external_id' => $externalId,
+            'id'          => $id,
+        ]);
+
+        return response()->json([
+            'status'  => 'acknowledged',
+            'message' => 'Payment callback received and acknowledged',
+        ], 200);
+    }
+
+    /**
+     * Meneruskan payload webhook ke website tujuan berdasarkan prefix external_id.
+     */
+    protected function forwardIfTargetMatched(Request $request, array $payload, ?string $externalId)
+    {
+        if (empty($externalId)) {
+            return null;
+        }
+
+        $forwarders = config('services.xendit.forwarders', []);
+        foreach ($forwarders as $target) {
+            $prefix = $target['prefix'] ?? '';
+            $url    = $target['url'] ?? '';
+
+            if (!empty($prefix) && !empty($url) && str_starts_with($externalId, $prefix)) {
+                Log::info("[Xendit Webhook Router] Forwarding to external website [{$prefix}] -> {$url}");
+
+                try {
+                    $forwardHeaders = ['Content-Type' => 'application/json'];
+                    if ($token = $request->header('x-callback-token')) {
+                        $forwardHeaders['x-callback-token'] = $token;
+                    }
+                    if ($webhookId = $request->header('webhook-id')) {
+                        $forwardHeaders['webhook-id'] = $webhookId;
+                    }
+
+                    $fwdResponse = Http::withHeaders($forwardHeaders)
+                        ->timeout(15)
+                        ->post($url, $payload);
+
+                    Log::info("[Xendit Webhook Router] Forwarded successfully [{$prefix}]", [
+                        'target_url'  => $url,
+                        'status_code' => $fwdResponse->status(),
+                    ]);
+
+                    return response()->json([
+                        'status'           => 'forwarded',
+                        'forward_target'   => $prefix,
+                        'forward_response' => $fwdResponse->json() ?? $fwdResponse->body(),
+                    ], 200);
+                } catch (\Exception $e) {
+                    Log::error("[Xendit Webhook Router] Failed to forward [{$prefix}] -> {$url}: " . $e->getMessage());
+
+                    return response()->json([
+                        'status'  => 'forward_error',
+                        'message' => 'Failed to forward to target website: ' . $e->getMessage(),
+                    ], 500);
+                }
+            }
+        }
+
+        return null;
+    }
 }
+

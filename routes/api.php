@@ -22,3 +22,6 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::post('/xendit/disbursement-callback', [\App\Http\Controllers\Api\XenditCallbackController::class, 'handleDisbursement'])
     ->name('api.xendit.disbursement.callback');
 
+Route::post('/xendit/payment-callback', [\App\Http\Controllers\Api\XenditCallbackController::class, 'handlePayment'])
+    ->name('api.xendit.payment.callback');
+
